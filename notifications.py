@@ -32,7 +32,7 @@ EMAIL_USER = "testwebservice71@gmail.com"
 EMAIL_PASS = "akuu vulg ejlg ysbt"
 
 # ================== TIMEZONE CONFIG ==================
-TZ = pytz.timezone("Asia/Singapore")  # Singapore timezone
+TZ = pytz.timezone("Asia/Kolkata")  # IST
 
 # ===================================================
 def build_message(ntf_typ, devnm):
@@ -327,4 +327,5 @@ if __name__ == "__main__":
         print("Starting Cron")
         check_and_notify()
         print("Done. Exting")
+
 
