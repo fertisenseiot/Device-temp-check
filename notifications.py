@@ -12,10 +12,10 @@ email_ids=""
 
 # ================== DATABASE CONFIG ==================
 db_config = {
-    "host": "switchback.proxy.rlwy.net",
+    "host": "switchyard.proxy.rlwy.net",
     "user": "root",
-    "port": 44750,
-    "password": "qYxlhEiaEvtiRvKaFyigDPtXSSCpddMv",
+    "port": 28085,
+    "password": "NOtYUNawwodSrBfGubHhwKaFtWyGXQct",
     "database": "railway",
 }
 
@@ -327,3 +327,4 @@ if __name__ == "__main__":
         print("Starting Cron")
         check_and_notify()
         print("Done. Exting")
+
