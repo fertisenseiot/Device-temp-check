@@ -1,21 +1,27 @@
+import traceback
 import mysql.connector
-from datetime import datetime, time, timedelta , date
+from datetime import datetime, time, timedelta,date
 import time as t  # <- renamed to avoid conflict
 import requests
 import smtplib
 from email.mime.text import MIMEText
 import pytz  # <- For timezone handling
+import os
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 
 devid_for_sms = None
-phone_numbers=""
-email_ids=""
-
-# ================== DATABASE CONFIG ==================
+phone_numbers = ""
+uni_phones =""
+email_ids = ""
+device_name =""
+dev_reading =""
+# ================== DATABASE CONFIG ==================#
 db_config = {
-    "host": "switchyard.proxy.rlwy.net",
+    "host": "switchback.proxy.rlwy.net",
     "user": "root",
-    "port": 28085,
-    "password": "NOtYUNawwodSrBfGubHhwKaFtWyGXQct",
+    "port": 44750,
+    "password": "qYxlhEiaEvtiRvKaFyigDPtXSSCpddMv",
     "database": "railway",
 }
 
@@ -25,16 +31,16 @@ SMS_USER = "8960853914"
 SMS_PASS = "8960853914"
 SENDER_ID = "FRTLLP"
 
-# ================== EMAIL CONFIG ==================
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-EMAIL_USER = "testwebservice71@gmail.com"
-EMAIL_PASS = "akuu vulg ejlg ysbt"
+# # ================== EMAIL CONFIG ==================
+# SMTP_SERVER = "smtp.gmail.com"
+# SMTP_PORT = 587
+# EMAIL_USER = "testwebservice71@gmail.com"
+# EMAIL_PASS = "akuu vulg ejlg ysbt"
 
 # ================== TIMEZONE CONFIG ==================
-TZ = pytz.timezone("Asia/Kolkata")  # IST
+TZ = pytz.timezone("Asia/Kolkata")  # Singapore timezone
 
-# ===================================================
+
 def build_message(ntf_typ, devnm):
     messages = {
         1: f"WARNING!! The Temperature of {devnm} has dipped below the lower limit. Please take necessary action- Regards Fertisense LLP",
@@ -54,7 +60,9 @@ def build_message(ntf_typ, devnm):
         15: f"WARNING!! The VOC reading in {devnm} has gone above the higher limit. Please take necessary action- Regards Fertisense LLP",
         16: f"INFO!! The VOC levels are back to normal in {devnm}. No action is required - Regards Fertisense LLP",
     }
+    
     return messages.get(ntf_typ, f"Alert for {devnm} - Regards Fertisense LLP")
+    
 
 def send_sms(phone, message):
     print("🔹 Sending SMS...")
@@ -72,30 +80,42 @@ def send_sms(phone, message):
     except Exception as e:
         print("❌ SMS failed:", e)
 
-def send_email(subject, message, email_ids):
-    if not email_ids:
-        print("❌ No email recipients. Skipping.")
+
+
+def send_email_brevo(to_email, subject, html_content):
+    print("📧 Sending Email via Brevo...")
+
+    BREVO_API_KEY = os.getenv("BREVO_API_KEY")   # <--- NO HARD CODE
+    if not BREVO_API_KEY:
+        print("❌ ERROR: BREVO_API_KEY not found in environment variables!")
         return
-    print("🔹 Sending Email...")
     try:
-        msg = MIMEText(message)
-        msg["Subject"] = subject
-        msg["From"] = EMAIL_USER
-        msg["To"] = ", ".join(email_ids)
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(EMAIL_USER, EMAIL_PASS)
-        server.sendmail(EMAIL_USER, email_ids, msg.as_string())
-        server.quit()
-        print("✅ Email sent successfully!")
-    except Exception as e:
+        configuration = sib_api_v3_sdk.Configuration()
+        configuration.api_key['api-key'] = BREVO_API_KEY
+
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+            sib_api_v3_sdk.ApiClient(configuration)
+        )
+
+        email = sib_api_v3_sdk.SendSmtpEmail(
+            to=[{"email": to_email}],
+            sender={"email": "fertisenseiot@gmail.com", "name": "Fertisense"},
+            subject=subject,
+            html_content=html_content
+        )
+
+        response = api_instance.send_transac_email(email)
+        print("✔ Email sent:", response)
+
+    except ApiException as e:
         print("❌ Email failed:", e)
+
 
 def get_contact_info(device_id):
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
-        
+
         today = date.today()
 
         # ---- Subscription Check First ----
@@ -117,13 +137,14 @@ def get_contact_info(device_id):
 
         if not subscription:
             return [], []   # Only 2 values
-        
+
         cursor.execute("""
             SELECT ORGANIZATION_ID, CENTRE_ID
-            FROM master_device
+            FROM iot_api_masterdevice
             WHERE DEVICE_ID = %s
         """, (device_id,))
         device = cursor.fetchone()
+
         if not device:
             return [], []
 
@@ -136,42 +157,47 @@ def get_contact_info(device_id):
             WHERE ORGANIZATION_ID_id = %s
               AND CENTRE_ID_id = %s
         """, (org_id, centre_id))
-        users_link = cursor.fetchall()
-        if not users_link:
-            return [], []
 
+        users_link = cursor.fetchall()
         user_ids = [u["USER_ID_id"] for u in users_link]
 
-        format_strings = ','.join(['%s'] * len(user_ids))
+        if not user_ids:
+            return [], []
+
+        format_strings = ",".join(["%s"] * len(user_ids))
         query = f"""
             SELECT USER_ID, PHONE, EMAIL, SEND_SMS, SEND_EMAIL
             FROM master_user
             WHERE USER_ID IN ({format_strings})
               AND (SEND_SMS = 1 OR SEND_EMAIL = 1)
         """
+
         cursor.execute(query, tuple(user_ids))
         users = cursor.fetchall()
 
-        phones = [u["PHONE"] for u in users if u["SEND_SMS"] == 1]
-        emails = [u["EMAIL"] for u in users if u["SEND_EMAIL"] == 1]
+        phone_numbers = [u["PHONE"] for u in users if u["SEND_SMS"] == 1]
+        print("Availablephone numbers",phone_numbers)
+        #uni_phones = list(set(phone_numbers))
+        email_ids = [u["EMAIL"] for u in users if u["SEND_EMAIL"] == 1]
+       
 
-        return phones, emails
-
+        return phone_numbers, email_ids
+        
     except Exception as e:
         print("❌ Error in get_contact_info:", e)
         return [], []
 
     finally:
-        if 'cursor' in locals():
+        if "cursor" in locals():
             cursor.close()
-        if 'conn' in locals() and conn.is_connected():
+        if "conn" in locals() and conn.is_connected():
             conn.close()
 
-# Track second notifications in memory
-second_notification_sent = {}  # alarm_id -> True
+
+second_notification_sent = {}
+
 
 def safe_time(t_value):
-    """Ensure the value is a datetime.time object"""
     if isinstance(t_value, time):
         return t_value
     try:
@@ -179,16 +205,20 @@ def safe_time(t_value):
     except:
         return time(0, 0, 0)
 
+
 def check_and_notify():
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
+
+        # 🔥 UPDATED TABLE NAME
         cursor.execute("""
-            SELECT ID, DEVICE_ID, PARAMETER_ID, ALARM_DATE, ALARM_TIME, SMS_DATE,SMS_TIME, EMAIL_DATE
-            FROM iot_api_devicealarmlog
-            WHERE IS_ACTIVE=1
+            SELECT ID, DEVICE_ID, PARAMETER_ID, ALARM_DATE, ALARM_TIME, SMS_DATE, SMS_TIME, EMAIL_DATE, READING
+            FROM devicealarmlog
+            WHERE IS_ACTIVE = 1
         """)
         alarms = cursor.fetchall()
+        print("Alarms",alarms)
         if not alarms:
             print("✅ No alarms found.")
             return
@@ -198,33 +228,32 @@ def check_and_notify():
         for alarm in alarms:
             alarm_id = alarm["ID"]
             devid = alarm["DEVICE_ID"]
-               # First get contact info
-            phones, emails = get_contact_info(devid)
-
-            if not phones and not emails:
-                print(f"⏹ Device {devid} skipped (no valid subscription)")
-                continue
             alarm_date = alarm["ALARM_DATE"]
             alarm_time = safe_time(alarm["ALARM_TIME"])
+            dev_reading = alarm["READING"]    
             raised_time = TZ.localize(datetime.combine(alarm_date, alarm_time))
             diff_seconds = (now - raised_time).total_seconds()
 
             first_sms_done = alarm["SMS_DATE"] is not None
             second_sms_done = second_notification_sent.get(alarm_id, False)
+            is_active = int(alarm.get("IS_ACTIVE", 0))
+            print("just checking for time elapsed after alarm initiation")
+            print("first sms done boolean check",first_sms_done)
+            print("diff seconds",diff_seconds)
+            # ================== FIRST NOTIFICATION ==================
+            if not first_sms_done and diff_seconds > 60:
+                print("⏳ FIRST SEND CONDITIONS MET")
 
-
-            # -------- FIRST NOTIFICATION --------
-            if not first_sms_done and diff_seconds >= 60:
-                cursor.execute("SELECT device_name FROM master_device WHERE device_id=%s", (devid,))
+                cursor.execute("SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s", (devid,))
                 row = cursor.fetchone()
                 devnm = row["device_name"] if row else f"Device-{devid}"
-
+                device_name = devnm
                 cursor.execute("""
                     SELECT 
                         MP.UPPER_THRESHOLD,
                         MP.LOWER_THRESHOLD,
                         DRL.READING AS CURRENT_READING
-                    FROM master_device MD
+                    FROM iot_api_masterdevice MD
                     LEFT JOIN iot_api_devicesensorlink DSL ON DSL.DEVICE_ID = MD.DEVICE_ID
                     LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
                     LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
@@ -233,14 +262,21 @@ def check_and_notify():
                     ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
                     LIMIT 1
                 """, (devid,))
+
                 reading_row = cursor.fetchone()
+
                 if not reading_row:
                     print(f"⚠️ No reading found for device {devnm}")
                     continue
 
+                currreading = reading_row["CURRENT_READING"]
+
+                if currreading is None:
+                    print(f"⚠️ Skipping device {devnm} as current reading is NULL.")
+                    continue
+
                 upth = reading_row["UPPER_THRESHOLD"]
                 lowth = reading_row["LOWER_THRESHOLD"]
-                currreading = reading_row["CURRENT_READING"]
 
                 print(f"Device {devnm}: Lower={lowth}, Upper={upth}, Current={currreading}")
 
@@ -253,36 +289,97 @@ def check_and_notify():
 
                 message = build_message(ntf_typ, devnm)
                 phones, emails = get_contact_info(devid)
+                
+                # ---- FIX START: Normalize all phone numbers properly ----
+                flat_phones = []
 
-                for phone in phones:
+                for p in phones:
+                    if p:  # ignore None
+                        # each p may be '7355383021,8960853911'
+                        parts = p.split(",")
+                        for part in parts:
+                            num = part.strip()
+                            if num:
+                                flat_phones.append(num)
+
+                # Deduplicate final list
+                unique_phones = list(set(flat_phones))
+
+                print("Unique phone numbers:", unique_phones)
+                # ---- FIX END ----
+
+                for phone in unique_phones:
                     send_sms(phone, message)
-                send_email("IoT Alarm Notification", message, emails)
+                # for phone in phones:
+                #     send_sms(phone, message)
+
+
+                # for em in emails:
+                #     #email_subject = "IoT Alarm Notification for " & device_name & ". The current reading is  " & dev_reading
+                #     email_subject = "IoT Alarm Notification for " + device_name + ". The current reading is " + str(dev_reading)
+
+                #     send_email_brevo(em, email_subject, message)
+                for em in emails:
+                    if currreading > upth:
+                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
+                    elif currreading < lowth:    
+                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
+                    else:
+                        # NORMAL CONDITION → No mail
+                        continue  
+                    
+                    email_body = f"""
+                    <h2>⚠ IoT Alert Triggered</h2>
+                    <p><b>Device:</b> {device_name}</p>
+                    <p><b>Current Reading:</b> {dev_reading}</p>
+                    <p><b>Limits:</b> {lowth} - {upth}</p>
+                    <p>Please check the device immediately.</p>
+                    <p></p>
+                    <p></p>
+                    <p>Regards</p>
+                    <p>Team Fertisense.</p>
+                    """
+
+                    send_email_brevo(em, email_subject, email_body)
+
 
                 now_ts = datetime.now(TZ)
+
+                # 🔥 UPDATED TABLE NAME
                 cursor.execute("""
-                    UPDATE iot_api_devicealarmlog
+                    UPDATE devicealarmlog
                     SET SMS_DATE=%s, SMS_TIME=%s, EMAIL_DATE=%s, EMAIL_TIME=%s
                     WHERE ID=%s
                 """, (now_ts.date(), now_ts.time(), now_ts.date(), now_ts.time(), alarm_id))
+
                 conn.commit()
                 print(f"✅ First notification sent for alarm {alarm_id}")
 
-            # -------- SECOND NOTIFICATION --------
-            elif first_sms_done and not second_sms_done:
-                first_sms_dt = datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
+# ================== SECOND NOTIFICATION ==================
+            #elif first_sms_done and alarm["EMAIL_DATE"] is None:
+            elif first_sms_done and is_active == 1 and not second_sms_done:
+                first_sms_dt = datetime.combine(
+                    alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"])
+                )
                 first_sms_dt = TZ.localize(first_sms_dt)
                 diff_hours = (now - first_sms_dt).total_seconds() / 3600
+
                 if diff_hours >= 6:
-                    cursor.execute("SELECT device_name FROM master_device WHERE device_id=%s", (devid,))
+
+                    cursor.execute(
+                        "SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s",
+                        (devid,),
+                    )
                     row = cursor.fetchone()
                     devnm = row["device_name"] if row else f"Device-{devid}"
-
-                    cursor.execute("""
+                    device_name = devnm
+                    cursor.execute(
+                        """
                         SELECT 
                             MP.UPPER_THRESHOLD,
                             MP.LOWER_THRESHOLD,
                             DRL.READING AS CURRENT_READING
-                        FROM master_device MD
+                        FROM iot_api_masterdevice MD
                         LEFT JOIN iot_api_devicesensorlink DSL ON DSL.DEVICE_ID = MD.DEVICE_ID
                         LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
                         LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
@@ -290,16 +387,21 @@ def check_and_notify():
                         WHERE MD.DEVICE_ID = %s
                         ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
                         LIMIT 1
-                    """, (devid,))
+                        """,
+                        (devid,),
+                    )
+
                     reading_row = cursor.fetchone()
                     if not reading_row:
                         continue
 
+                    currreading = reading_row["CURRENT_READING"]
+                    if currreading is None:
+                        print(f"⚠️ Skipping device {devnm} as current reading is NULL.")
+                        continue
+
                     upth = reading_row["UPPER_THRESHOLD"]
                     lowth = reading_row["LOWER_THRESHOLD"]
-                    currreading = reading_row["CURRENT_READING"]
-
-                    print(f"Device {devnm} [Reminder]: Lower={lowth}, Upper={upth}, Current={currreading}")
 
                     if currreading < lowth:
                         ntf_typ = 1
@@ -311,21 +413,73 @@ def check_and_notify():
                     message = build_message(ntf_typ, devnm)
                     phones, emails = get_contact_info(devid)
 
-                    for phone in phones:
-                        send_sms(phone, message)
-                    send_email("IoT Alarm Notification - Reminder", message, emails)
-                    second_notification_sent[alarm_id] = True
-                    print(f"✅ Second notification sent for alarm {alarm_id}")
+                    # ---- FIX START: Normalize all phone numbers properly ----
+                    flat_phones = []
 
+                    for p in phones:
+                        if p:  # ignore None
+                            # each p may be '7355383021,8960853911'
+                            parts = p.split(",")
+                            for part in parts:
+                                num = part.strip()
+                                if num:
+                                    flat_phones.append(num)
+
+                    # Deduplicate final list
+                    unique_phones = list(set(flat_phones))
+
+                    print("Unique phone numbers:", unique_phones)
+                    # ---- FIX END ----
+                    for phone in unique_phones:
+                        send_sms(phone, message)
+
+
+                    for em in emails:
+                        if currreading > upth:
+                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
+                        elif currreading < lowth:    
+                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
+                        else:
+                            # NORMAL CONDITION → No mail
+                            continue  
+                        email_body = f"""
+                        <h2>⚠ IoT Alert Triggered</h2>
+                        <p><b>Device:</b> {device_name}</p>
+                        <p><b>Current Reading:</b> {dev_reading}</p>
+                        <p><b>Limits:</b> {lowth} - {upth}</p>
+                        <p>Please check the device immediately.</p>
+                        <p></p>
+                        <p></p>
+                        <p>Regards</p>
+                        <p>Team Fertisense.</p>
+                        """
+
+                    send_email_brevo(em, email_subject, email_body)
+
+                    # Mark second notification done (NO NEW COLUMN USED)
+                    now_ts = datetime.now(TZ)
+                    cursor.execute(
+                        """
+                        UPDATE devicealarmlog
+                        SET EMAIL_DATE=%s
+                        WHERE ID=%s
+                        """,
+                        (now_ts.time(), alarm_id),
+                    )
+
+                    conn.commit()
+                    print(f"✅ Second notification sent for alarm {alarm_id}")
+            else:
+                print("Elapsed time",diff_seconds)
         cursor.close()
         conn.close()
 
     except Exception as e:
+        traceback.print_exc()
         print("❌ Error in check_and_notify:", e)
 
+
 if __name__ == "__main__":
-        print("Starting Cron")
-        check_and_notify()
-        print("Done. Exting")
-
-
+    print("🚀 Starting notification check...")
+    check_and_notify()
+    print("✅ Notification check complete. Exiting now.")
