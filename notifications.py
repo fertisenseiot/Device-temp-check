@@ -41,15 +41,15 @@ SENDER_ID = "FRTLLP"
 TZ = pytz.timezone("Asia/Kolkata")  # Singapore timezone
 
 
-def build_message(ntf_typ, devnm):
+def build_message(ntf_typ, devnm , param_name):
     messages = {
-        1: f"WARNING!! The Temperature of {devnm} has dipped below the lower limit. Please take necessary action- Regards Fertisense LLP",
-        2: f"WARNING!! The Temperature of {devnm} has crossed the higher limit. Please take necessary action- Regards Fertisense LLP",
+        1: f"WARNING!! The {param_name} of {devnm} has dipped below the lower limit. Please take necessary action- Regards Fertisense LLP",
+        2: f"WARNING!! The {param_name} of {devnm} has crossed the higher limit. Please take necessary action- Regards Fertisense LLP",
         3: f"WARNING!! The {devnm} is offline. Please take necessary action- Regards Fertisense LLP",
         4: f"WARNING!! The level of liquid nitrogen in {devnm} is low. Please take necessary action- Regards Fertisense LLP",
         5: f"INFO!! The device {devnm} is back online. No action is required - Regards Fertisense LLP",
         6: f"INFO!! The level of Liquid Nitrogen is back to normal for {devnm}. No action is required - Regards Fertisense LLP",
-        7: f"INFO!! The temperature levels are back to normal for {devnm}. No action is required - Regards Fertisense LLP",
+        7: f"INFO!! The {param_name} levels are back to normal for {devnm}. No action is required - Regards Fertisense LLP",
         8: f"WARNING!! The room temperature reading in {devnm} has dipped below the lower limit. Please take necessary action- Regards Fertisense LLP",
         9: f"WARNING!! The room temperature reading in {devnm} has gone above the higher limit. Please take necessary action- Regards Fertisense LLP",
         10: f"INFO!! The room temperature levels are back to normal in {devnm}. No action is required - Regards Fertisense LLP",
@@ -61,7 +61,7 @@ def build_message(ntf_typ, devnm):
         16: f"INFO!! The VOC levels are back to normal in {devnm}. No action is required - Regards Fertisense LLP",
     }
     
-    return messages.get(ntf_typ, f"Alert for {devnm} - Regards Fertisense LLP")
+    return messages.get(ntf_typ, f"Alert for {devnm} - {param_name} Regards Fertisense LLP")
     
 
 def send_sms(phone, message):
@@ -225,9 +225,20 @@ def check_and_notify():
 
         now = datetime.now(TZ)
 
-        for alarm in alarms:
-            alarm_id = alarm["ID"]
-            devid = alarm["DEVICE_ID"]
+       for alarm in alarms:
+    alarm_id = alarm["ID"]
+    devid = alarm["DEVICE_ID"]
+
+    # fetch parameter name
+    cursor.execute("""
+        SELECT PARAMETER_NAME 
+        FROM iot_api_masterparameter
+        WHERE PARAMETER_ID = %s
+    """, (alarm["PARAMETER_ID"],))
+
+    p = cursor.fetchone()
+    param_name = p["PARAMETER_NAME"] if p else "Parameter"
+
             alarm_date = alarm["ALARM_DATE"]
             alarm_time = safe_time(alarm["ALARM_TIME"])
             dev_reading = alarm["READING"]    
@@ -320,28 +331,53 @@ def check_and_notify():
 
                 #     send_email_brevo(em, email_subject, message)
                 for em in emails:
-                    if currreading > upth:
-                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
-                    elif currreading < lowth:    
-                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
-                    else:
-                        # NORMAL CONDITION → No mail
-                        continue  
-                    
-                    email_body = f"""
-                    <h2>⚠ IoT Alert Triggered</h2>
-                    <p><b>Device:</b> {device_name}</p>
-                    <p><b>Current Reading:</b> {dev_reading}</p>
-                    <p><b>Limits:</b> {lowth} - {upth}</p>
-                    <p>Please check the device immediately.</p>
-                    <p></p>
-                    <p></p>
-                    <p>Regards</p>
-                    <p>Team Fertisense.</p>
-                    """
 
-                    send_email_brevo(em, email_subject, email_body)
+    # 👉 get parameter details for this alarm
+    cursor.execute("""
+        SELECT 
+            MP.PARAMETER_NAME,
+            MP.UPPER_THRESHOLD,
+            MP.LOWER_THRESHOLD,
+            %s AS CURRENT_READING
+        FROM iot_api_masterparameter MP
+        WHERE MP.PARAMETER_ID = %s
+    """, (currreading, alarm["PARAMETER_ID"]))
 
+    prow = cursor.fetchone()
+
+    param_name = prow["PARAMETER_NAME"]
+    upth = prow["UPPER_THRESHOLD"]
+    lowth = prow["LOWER_THRESHOLD"]
+
+    # 👉 status decide
+    if currreading > upth:
+        status_text = "HIGHER than normal"
+        ntf_typ = 2
+    elif currreading < lowth:
+        status_text = "LOWER than normal"
+        ntf_typ = 1
+    else:
+        status_text = "NORMAL"
+        ntf_typ = 7
+
+    # 👉 final message text
+    message = build_message(ntf_typ, device_name, param_name)
+
+    email_subject = f"IoT Alert | {device_name} | {param_name} is {status_text}"
+
+    email_body = f"""
+    <h3>IoT Alert Triggered</h3>
+    <b>Device:</b> {device_name}<br>
+    <b>Parameter:</b> {param_name}<br>
+    <b>Current Reading:</b> {currreading}<br>
+    <b>Lower Threshold:</b> {lowth}<br>
+    <b>Upper Threshold:</b> {upth}<br><br>
+    Status: <b>{status_text}</b><br><br>
+    Regards,<br>
+    Team Fertisense
+    """
+
+    send_email_brevo(em, email_subject, email_body)
 
                 now_ts = datetime.now(TZ)
 
@@ -483,4 +519,5 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
