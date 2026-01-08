@@ -286,15 +286,43 @@ def check_and_notify():
 
                 upth = reading_row["UPPER_THRESHOLD"]
                 lowth = reading_row["LOWER_THRESHOLD"]
+                param_id = alarm["PARAMETER_ID"]
 
                 print(f"Device {devnm}: Lower={lowth}, Upper={upth}, Current={currreading}")
+                
 
-                if currreading < lowth:
-                    ntf_typ = 1
-                elif currreading > upth:
-                    ntf_typ = 2
+                # ✅ PARAMETER BASED NOTIFICATION TYPE (FIRST NOTIFICATION)
+                if param_id == 4:          # Incubator Temperature
+                    if currreading < lowth:
+                        ntf_typ = 24
+                    elif currreading > upth:
+                        ntf_typ = 23
+                    else:
+                        ntf_typ = 25
+                elif param_id == 1:        # Normal Temperature
+                        if currreading < lowth:
+                            ntf_typ = 1
+                        elif currreading > upth:
+                             ntf_typ = 2
+                        else:
+                             ntf_typ = 7
+                elif param_id == 2:        # CO2
+                        if currreading < lowth:
+                            ntf_typ = 17
+                        elif currreading > upth:
+                            ntf_typ = 18
+                        else:
+                            ntf_typ = 19
+                elif param_id == 3:        # O2
+                        if currreading < lowth:
+                            ntf_typ = 20
+                        elif currreading > upth:
+                            ntf_typ = 21
+                        else:
+                            ntf_typ = 22
+
                 else:
-                    ntf_typ = 7
+                        ntf_typ = 7
 
                 message = build_message(ntf_typ, devnm)
                 phones, emails = get_contact_info(devid)
@@ -373,7 +401,7 @@ def check_and_notify():
                 first_sms_dt = TZ.localize(first_sms_dt)
                 diff_hours = (now - first_sms_dt).total_seconds() / 3600
 
-                if diff_hours >= 6:
+            if diff_hours >= 6:
 
                     cursor.execute(
                         "SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s",
@@ -412,6 +440,18 @@ def check_and_notify():
                     upth = reading_row["UPPER_THRESHOLD"]
                     lowth = reading_row["LOWER_THRESHOLD"]
 
+                    param_id = alarm["PARAMETER_ID"]
+
+                    # ---- PARAMETER BASED NOTIFICATION TYPE ----
+                    if param_id == 4:   # 👈 Incubator Temperature PARAMETER_ID
+                     if currreading < lowth:
+                        ntf_typ = 24
+                    elif currreading > upth:
+                        ntf_typ = 23
+                    else:
+                        ntf_typ = 25
+
+            elif param_id == 1:  # 👈 Normal Temperature
                     if currreading < lowth:
                         ntf_typ = 1
                     elif currreading > upth:
@@ -419,13 +459,34 @@ def check_and_notify():
                     else:
                         ntf_typ = 7
 
-                    message = build_message(ntf_typ, devnm)
-                    phones, emails = get_contact_info(devid)
+            elif param_id == 2:  # 👈 CO2
+                    if currreading < lowth:
+                        ntf_typ = 17
+                    elif currreading > upth:
+                        ntf_typ = 18
+                    else:
+                        ntf_typ = 19
+
+            elif param_id == 3:  # 👈 O2
+                    if currreading < lowth:
+                        ntf_typ = 20
+                    elif currreading > upth:
+                        ntf_typ = 21
+                    else:
+                        ntf_typ = 22
+
+            else:
+                    # fallback (safe)
+                         ntf_typ = 7
+
+
+            message = build_message(ntf_typ, devnm)
+            phones, emails = get_contact_info(devid)
 
                     # ---- FIX START: Normalize all phone numbers properly ----
-                    flat_phones = []
+            flat_phones = []
 
-                    for p in phones:
+            for p in phones:
                         if p:  # ignore None
                             # each p may be '7355383021,8960853911'
                             parts = p.split(",")
@@ -435,15 +496,15 @@ def check_and_notify():
                                     flat_phones.append(num)
 
                     # Deduplicate final list
-                    unique_phones = list(set(flat_phones))
+            unique_phones = list(set(flat_phones))
 
-                    print("Unique phone numbers:", unique_phones)
+            print("Unique phone numbers:", unique_phones)
                     # ---- FIX END ----
-                    for phone in unique_phones:
+            for phone in unique_phones:
                         send_sms(phone, message)
 
 
-                    for em in emails:
+            for em in emails:
                         if currreading > upth:
                             email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
                         elif currreading < lowth:    
@@ -463,11 +524,11 @@ def check_and_notify():
                         <p>Team Fertisense.</p>
                         """
 
-                    send_email_brevo(em, email_subject, email_body)
+            send_email_brevo(em, email_subject, email_body)
 
                     # Mark second notification done (NO NEW COLUMN USED)
-                    now_ts = datetime.now(TZ)
-                    cursor.execute(
+            now_ts = datetime.now(TZ)
+            cursor.execute(
                         """
                         UPDATE devicealarmlog
                         SET EMAIL_DATE=%s
@@ -476,9 +537,9 @@ def check_and_notify():
                         (now_ts.time(), alarm_id),
                     )
 
-                    conn.commit()
-                    print(f"✅ Second notification sent for alarm {alarm_id}")
-            else:
+            conn.commit()
+            print(f"✅ Second notification sent for alarm {alarm_id}")
+        else:
                 print("Elapsed time",diff_seconds)
         cursor.close()
         conn.close()
