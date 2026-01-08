@@ -279,7 +279,7 @@ def check_and_notify():
                     LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
                     LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
                     LEFT JOIN device_reading_log DRL ON DRL.DEVICE_ID = MD.DEVICE_ID
-                    WHERE MD.DEVICE_ID = %s
+                    WHERE MD.DEVICE_ID = %s AND MP.PARAMETER_ID = %s
                     ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
                     LIMIT 1
                 """, (devid,))
@@ -360,7 +360,7 @@ def check_and_notify():
                         LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
                         LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
                         LEFT JOIN device_reading_log DRL ON DRL.DEVICE_ID = MD.DEVICE_ID
-                        WHERE MD.DEVICE_ID = %s
+                        WHERE MD.DEVICE_ID = %s AND MP.PARAMETER_ID = %s
                         ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
                         LIMIT 1
                     """, (devid,))
