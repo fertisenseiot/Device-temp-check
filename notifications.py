@@ -270,19 +270,24 @@ def check_and_notify():
                 device_name = devnm
 
                 cursor.execute("""
-                    SELECT MP.PARAMETER_NAME,
-                           MP.UPPER_THRESHOLD,
-                           MP.LOWER_THRESHOLD,
-                           DRL.READING AS CURRENT_READING
-                    FROM iot_api_masterdevice MD
-                    LEFT JOIN iot_api_devicesensorlink DSL ON DSL.DEVICE_ID = MD.DEVICE_ID
-                    LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
-                    LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
-                    LEFT JOIN device_reading_log DRL ON DRL.DEVICE_ID = MD.DEVICE_ID
-                    WHERE MD.DEVICE_ID = %s AND MP.PARAMETER_ID = %s
-                    ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
-                    LIMIT 1
-                """, (devid,))
+    SELECT
+        MP.PARAMETER_NAME,
+        MP.UPPER_THRESHOLD,
+        MP.LOWER_THRESHOLD,
+        DRL.READING AS CURRENT_READING
+    FROM iot_api_masterdevice MD
+    LEFT JOIN iot_api_devicesensorlink DSL ON DSL.DEVICE_ID = MD.DEVICE_ID
+    LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
+    LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
+    LEFT JOIN device_reading_log DRL 
+        ON DRL.DEVICE_ID = MD.DEVICE_ID 
+       AND DRL.PARAMETER_ID = MP.PARAMETER_ID
+    WHERE MD.DEVICE_ID = %s
+      AND MP.PARAMETER_ID = %s
+    ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
+    LIMIT 1
+""", (devid, alarm["PARAMETER_ID"]))
+
 
                 reading_row = cursor.fetchone()
                 if not reading_row:
@@ -351,19 +356,24 @@ def check_and_notify():
                     device_name = devnm
 
                     cursor.execute("""
-                        SELECT MP.PARAMETER_NAME,
-                               MP.UPPER_THRESHOLD,
-                               MP.LOWER_THRESHOLD,
-                               DRL.READING AS CURRENT_READING
-                        FROM iot_api_masterdevice MD
-                        LEFT JOIN iot_api_devicesensorlink DSL ON DSL.DEVICE_ID = MD.DEVICE_ID
-                        LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
-                        LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
-                        LEFT JOIN device_reading_log DRL ON DRL.DEVICE_ID = MD.DEVICE_ID
-                        WHERE MD.DEVICE_ID = %s AND MP.PARAMETER_ID = %s
-                        ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
-                        LIMIT 1
-                    """, (devid,))
+    SELECT
+        MP.PARAMETER_NAME,
+        MP.UPPER_THRESHOLD,
+        MP.LOWER_THRESHOLD,
+        DRL.READING AS CURRENT_READING
+    FROM iot_api_masterdevice MD
+    LEFT JOIN iot_api_devicesensorlink DSL ON DSL.DEVICE_ID = MD.DEVICE_ID
+    LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
+    LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
+    LEFT JOIN device_reading_log DRL 
+        ON DRL.DEVICE_ID = MD.DEVICE_ID 
+       AND DRL.PARAMETER_ID = MP.PARAMETER_ID
+    WHERE MD.DEVICE_ID = %s
+      AND MP.PARAMETER_ID = %s
+    ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
+    LIMIT 1
+""", (devid, alarm["PARAMETER_ID"]))
+
 
                     reading_row = cursor.fetchone()
                     if not reading_row:
