@@ -41,15 +41,15 @@ SENDER_ID = "FRTLLP"
 TZ = pytz.timezone("Asia/Kolkata")  # Singapore timezone
 
 
-def build_message(ntf_typ, devnm , param_name):
+def build_message(ntf_typ, devnm):
     messages = {
-        1: f"WARNING!! The {param_name} of {devnm} has dipped below the lower limit. Please take necessary action- Regards Fertisense LLP",
-        2: f"WARNING!! The {param_name} of {devnm} has crossed the higher limit. Please take necessary action- Regards Fertisense LLP",
+        1: f"WARNING!! The Temperature of {devnm} has dipped below the lower limit. Please take necessary action- Regards Fertisense LLP",
+        2: f"WARNING!! The Temperature of {devnm} has crossed the higher limit. Please take necessary action- Regards Fertisense LLP",
         3: f"WARNING!! The {devnm} is offline. Please take necessary action- Regards Fertisense LLP",
         4: f"WARNING!! The level of liquid nitrogen in {devnm} is low. Please take necessary action- Regards Fertisense LLP",
         5: f"INFO!! The device {devnm} is back online. No action is required - Regards Fertisense LLP",
         6: f"INFO!! The level of Liquid Nitrogen is back to normal for {devnm}. No action is required - Regards Fertisense LLP",
-        7: f"INFO!! The {param_name} levels are back to normal for {devnm}. No action is required - Regards Fertisense LLP",
+        7: f"INFO!! The temperature levels are back to normal for {devnm}. No action is required - Regards Fertisense LLP",
         8: f"WARNING!! The room temperature reading in {devnm} has dipped below the lower limit. Please take necessary action- Regards Fertisense LLP",
         9: f"WARNING!! The room temperature reading in {devnm} has gone above the higher limit. Please take necessary action- Regards Fertisense LLP",
         10: f"INFO!! The room temperature levels are back to normal in {devnm}. No action is required - Regards Fertisense LLP",
@@ -59,9 +59,18 @@ def build_message(ntf_typ, devnm , param_name):
         14: f"WARNING!! The VOC reading in {devnm} has dipped below the lower limit. Please take necessary action- Regards Fertisense LLP",
         15: f"WARNING!! The VOC reading in {devnm} has gone above the higher limit. Please take necessary action- Regards Fertisense LLP",
         16: f"INFO!! The VOC levels are back to normal in {devnm}. No action is required - Regards Fertisense LLP",
+        17: f"WARNING!! The CO2 reading in {devnm} has dipped below the lower limit. Please take necessary action - Regards Fertisense LLP",
+        18: f"WARNING!! The CO2 reading in {devnm} has gone above the higher limit. Please take necessary action - Regards Fertisense LLP",
+        19: f"INFO!! The CO2 levels are back to normal in {devnm}. No action is required - Regards Fertisense LLP",
+        20: f"WARNING!! The O2 reading in {devnm} has dipped below the lower limit. Please take necessary action - Regards Fertisense LLP",
+        21: f"WARNING!! The O2 reading in {devnm} has gone above the higher limit. Please take necessary action - Regards Fertisense LLP",
+        22: f"INFO!! The O2 levels are back to normal in {devnm}. No action is required - Regards Fertisense LLP",
+        23: f"WARNING!! The Incubator temperature of {devnm} has crossed the higher limit. Please take necessary action - Regards Fertisense LLP",
+        24: f"WARNING!! The Incubator temperature of {devnm} has dipped below the lower limit. Please take necessary action - Regards Fertisense LLP",
+        25: f"INFO!!  The Incubator temperature levels are back to normal for {devnm}. No action is required - Regards Fertisense LLP",
     }
     
-    return messages.get(ntf_typ, f"Alert for {devnm} - {param_name} Regards Fertisense LLP")
+    return messages.get(ntf_typ, f"Alert for {devnm} - Regards Fertisense LLP")
     
 
 def send_sms(phone, message):
@@ -213,49 +222,33 @@ def check_and_notify():
 
         # 🔥 UPDATED TABLE NAME
         cursor.execute("""
-            SELECT ID, DEVICE_ID, PARAMETER_ID, ALARM_DATE, ALARM_TIME, SMS_DATE, SMS_TIME, EMAIL_DATE, READING, IS_ACTIVE
+            SELECT ID, DEVICE_ID, PARAMETER_ID, ALARM_DATE, ALARM_TIME, SMS_DATE, SMS_TIME, EMAIL_DATE, READING
             FROM devicealarmlog
             WHERE IS_ACTIVE = 1
         """)
         alarms = cursor.fetchall()
-        print("Alarms", alarms)
-
+        print("Alarms",alarms)
         if not alarms:
             print("✅ No alarms found.")
             return
 
         now = datetime.now(TZ)
 
-        # ================= LOOP START =================
         for alarm in alarms:
             alarm_id = alarm["ID"]
             devid = alarm["DEVICE_ID"]
-
-            # fetch parameter name
-            cursor.execute("""
-                SELECT PARAMETER_NAME 
-                FROM iot_api_masterparameter
-                WHERE PARAMETER_ID = %s
-            """, (alarm["PARAMETER_ID"],))
-
-            p = cursor.fetchone()
-            param_name = p["PARAMETER_NAME"] if p else "Parameter"
-
             alarm_date = alarm["ALARM_DATE"]
             alarm_time = safe_time(alarm["ALARM_TIME"])
-            dev_reading = alarm["READING"]
-
+            dev_reading = alarm["READING"]    
             raised_time = TZ.localize(datetime.combine(alarm_date, alarm_time))
             diff_seconds = (now - raised_time).total_seconds()
 
             first_sms_done = alarm["SMS_DATE"] is not None
             second_sms_done = second_notification_sent.get(alarm_id, False)
             is_active = int(alarm.get("IS_ACTIVE", 0))
-
             print("just checking for time elapsed after alarm initiation")
-            print("first sms done boolean check", first_sms_done)
-            print("diff seconds", diff_seconds)
-
+            print("first sms done boolean check",first_sms_done)
+            print("diff seconds",diff_seconds)
             # ================== FIRST NOTIFICATION ==================
             if not first_sms_done and diff_seconds > 60:
                 print("⏳ FIRST SEND CONDITIONS MET")
@@ -264,7 +257,6 @@ def check_and_notify():
                 row = cursor.fetchone()
                 devnm = row["device_name"] if row else f"Device-{devid}"
                 device_name = devnm
-
                 cursor.execute("""
                     SELECT 
                         MP.UPPER_THRESHOLD,
@@ -306,72 +298,63 @@ def check_and_notify():
 
                 message = build_message(ntf_typ, devnm)
                 phones, emails = get_contact_info(devid)
-
+                
                 # ---- FIX START: Normalize all phone numbers properly ----
                 flat_phones = []
 
                 for p in phones:
-                    if p:
+                    if p:  # ignore None
+                        # each p may be '7355383021,8960853911'
                         parts = p.split(",")
                         for part in parts:
                             num = part.strip()
                             if num:
                                 flat_phones.append(num)
 
+                # Deduplicate final list
                 unique_phones = list(set(flat_phones))
+
                 print("Unique phone numbers:", unique_phones)
+                # ---- FIX END ----
 
                 for phone in unique_phones:
                     send_sms(phone, message)
+                # for phone in phones:
+                #     send_sms(phone, message)
 
+
+                # for em in emails:
+                #     #email_subject = "IoT Alarm Notification for " & device_name & ". The current reading is  " & dev_reading
+                #     email_subject = "IoT Alarm Notification for " + device_name + ". The current reading is " + str(dev_reading)
+
+                #     send_email_brevo(em, email_subject, message)
                 for em in emails:
-                    # 👉 get parameter details for this alarm
-                    cursor.execute("""
-                        SELECT 
-                            MP.PARAMETER_NAME,
-                            MP.UPPER_THRESHOLD,
-                            MP.LOWER_THRESHOLD,
-                            %s AS CURRENT_READING
-                        FROM iot_api_masterparameter MP
-                        WHERE MP.PARAMETER_ID = %s
-                    """, (currreading, alarm["PARAMETER_ID"]))
-
-                    prow = cursor.fetchone()
-
-                    param_name = prow["PARAMETER_NAME"]
-                    upth = prow["UPPER_THRESHOLD"]
-                    lowth = prow["LOWER_THRESHOLD"]
-
                     if currreading > upth:
-                        status_text = "HIGHER than normal"
-                        ntf_typ = 2
-                    elif currreading < lowth:
-                        status_text = "LOWER than normal"
-                        ntf_typ = 1
+                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
+                    elif currreading < lowth:    
+                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
                     else:
-                        status_text = "NORMAL"
-                        ntf_typ = 7
-
-                    message = build_message(ntf_typ, device_name, param_name)
-
-                    email_subject = f"IoT Alert | {device_name} | {param_name} is {status_text}"
-
+                        # NORMAL CONDITION → No mail
+                        continue  
+                    
                     email_body = f"""
-                        <h3>IoT Alert Triggered</h3>
-                        <b>Device:</b> {device_name}<br>
-                        <b>Parameter:</b> {param_name}<br>
-                        <b>Current Reading:</b> {currreading}<br>
-                        <b>Lower Threshold:</b> {lowth}<br>
-                        <b>Upper Threshold:</b> {upth}<br><br>
-                        Status: <b>{status_text}</b><br><br>
-                        Regards,<br>
-                        Team Fertisense
+                    <h2>⚠ IoT Alert Triggered</h2>
+                    <p><b>Device:</b> {device_name}</p>
+                    <p><b>Current Reading:</b> {dev_reading}</p>
+                    <p><b>Limits:</b> {lowth} - {upth}</p>
+                    <p>Please check the device immediately.</p>
+                    <p></p>
+                    <p></p>
+                    <p>Regards</p>
+                    <p>Team Fertisense.</p>
                     """
 
                     send_email_brevo(em, email_subject, email_body)
 
+
                 now_ts = datetime.now(TZ)
 
+                # 🔥 UPDATED TABLE NAME
                 cursor.execute("""
                     UPDATE devicealarmlog
                     SET SMS_DATE=%s, SMS_TIME=%s, EMAIL_DATE=%s, EMAIL_TIME=%s
@@ -381,39 +364,122 @@ def check_and_notify():
                 conn.commit()
                 print(f"✅ First notification sent for alarm {alarm_id}")
 
-            # ================== SECOND NOTIFICATION ==================
+# ================== SECOND NOTIFICATION ==================
+            #elif first_sms_done and alarm["EMAIL_DATE"] is None:
             elif first_sms_done and is_active == 1 and not second_sms_done:
-                first_sms_dt = datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
+                first_sms_dt = datetime.combine(
+                    alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"])
+                )
                 first_sms_dt = TZ.localize(first_sms_dt)
                 diff_hours = (now - first_sms_dt).total_seconds() / 3600
 
                 if diff_hours >= 6:
-                    cursor.execute("SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s", (devid,))
+
+                    cursor.execute(
+                        "SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s",
+                        (devid,),
+                    )
                     row = cursor.fetchone()
                     devnm = row["device_name"] if row else f"Device-{devid}"
                     device_name = devnm
+                    cursor.execute(
+                        """
+                        SELECT 
+                            MP.UPPER_THRESHOLD,
+                            MP.LOWER_THRESHOLD,
+                            DRL.READING AS CURRENT_READING
+                        FROM iot_api_masterdevice MD
+                        LEFT JOIN iot_api_devicesensorlink DSL ON DSL.DEVICE_ID = MD.DEVICE_ID
+                        LEFT JOIN iot_api_sensorparameterlink SPL ON SPL.SENSOR_ID = DSL.SENSOR_ID
+                        LEFT JOIN iot_api_masterparameter MP ON MP.PARAMETER_ID = SPL.PARAMETER_ID
+                        LEFT JOIN device_reading_log DRL ON DRL.DEVICE_ID = MD.DEVICE_ID
+                        WHERE MD.DEVICE_ID = %s
+                        ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
+                        LIMIT 1
+                        """,
+                        (devid,),
+                    )
 
-                    message = build_message(7, devnm)
+                    reading_row = cursor.fetchone()
+                    if not reading_row:
+                        continue
 
+                    currreading = reading_row["CURRENT_READING"]
+                    if currreading is None:
+                        print(f"⚠️ Skipping device {devnm} as current reading is NULL.")
+                        continue
+
+                    upth = reading_row["UPPER_THRESHOLD"]
+                    lowth = reading_row["LOWER_THRESHOLD"]
+
+                    if currreading < lowth:
+                        ntf_typ = 1
+                    elif currreading > upth:
+                        ntf_typ = 2
+                    else:
+                        ntf_typ = 7
+
+                    message = build_message(ntf_typ, devnm)
                     phones, emails = get_contact_info(devid)
 
-                    for phone in phones:
+                    # ---- FIX START: Normalize all phone numbers properly ----
+                    flat_phones = []
+
+                    for p in phones:
+                        if p:  # ignore None
+                            # each p may be '7355383021,8960853911'
+                            parts = p.split(",")
+                            for part in parts:
+                                num = part.strip()
+                                if num:
+                                    flat_phones.append(num)
+
+                    # Deduplicate final list
+                    unique_phones = list(set(flat_phones))
+
+                    print("Unique phone numbers:", unique_phones)
+                    # ---- FIX END ----
+                    for phone in unique_phones:
                         send_sms(phone, message)
 
+
                     for em in emails:
-                        send_email_brevo(em, "Second Notification", message)
+                        if currreading > upth:
+                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
+                        elif currreading < lowth:    
+                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
+                        else:
+                            # NORMAL CONDITION → No mail
+                            continue  
+                        email_body = f"""
+                        <h2>⚠ IoT Alert Triggered</h2>
+                        <p><b>Device:</b> {device_name}</p>
+                        <p><b>Current Reading:</b> {dev_reading}</p>
+                        <p><b>Limits:</b> {lowth} - {upth}</p>
+                        <p>Please check the device immediately.</p>
+                        <p></p>
+                        <p></p>
+                        <p>Regards</p>
+                        <p>Team Fertisense.</p>
+                        """
 
+                    send_email_brevo(em, email_subject, email_body)
+
+                    # Mark second notification done (NO NEW COLUMN USED)
                     now_ts = datetime.now(TZ)
-
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         UPDATE devicealarmlog
                         SET EMAIL_DATE=%s
                         WHERE ID=%s
-                    """, (now_ts.date(), alarm_id))
+                        """,
+                        (now_ts.time(), alarm_id),
+                    )
 
                     conn.commit()
                     print(f"✅ Second notification sent for alarm {alarm_id}")
-
+            else:
+                print("Elapsed time",diff_seconds)
         cursor.close()
         conn.close()
 
@@ -426,3 +492,5 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
+
