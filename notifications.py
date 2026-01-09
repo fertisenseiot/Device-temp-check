@@ -215,13 +215,21 @@ def safe_time(t_value):
         return time(0, 0, 0)
 
 # 🔥🔥 YAHAN RAKHNA HAI 🔥🔥
-def get_ntf_type_by_name(param, curr, low, up):
-    if param == "Inc_CO2":
+def get_ntf_type_by_id(param_id, curr, low, up):
+
+    # ---- Incubator CO2 (PARAMETER_ID = 8) ----
+    if param_id == 8:
         return 17 if curr < low else 18 if curr > up else 19
-    if param == "Inc_O2":
+    
+    # ---- Incubator O2 (PARAMETER_ID = 9) ----
+    if param_id == 9:
         return 20 if curr < low else 21 if curr > up else 22
-    if param == "Inc_Temp_T1":
+    
+    # ---- Incubator Temperature (PARAMETER_ID = 4) ----
+    if param_id == 4:
         return 24 if curr < low else 23 if curr > up else 25
+    
+    # ---- Default (Fridge / Cryo / Others) ----
     return 1 if curr < low else 2 if curr > up else 7
 
 
@@ -271,7 +279,7 @@ def check_and_notify():
 
                 cursor.execute("""
     SELECT
-        MP.PARAMETER_NAME,
+        MP.PARAMETER_ID,
         MP.UPPER_THRESHOLD,
         MP.LOWER_THRESHOLD,
         DRL.READING AS CURRENT_READING
@@ -291,17 +299,21 @@ def check_and_notify():
 
                 reading_row = cursor.fetchone()
                 if not reading_row:
+                    print(f"⚠️ No reading found for device {devnm}")
                     continue
 
                 currreading = reading_row["CURRENT_READING"]
                 if currreading is None:
+                    print(f"⚠️ Skipping device {devnm} as current reading is NULL.")
                     continue
 
                 upth = reading_row["UPPER_THRESHOLD"]
                 lowth = reading_row["LOWER_THRESHOLD"]
-                param_name = reading_row["PARAMETER_NAME"]
+                param_id = reading_row["PARAMETER_ID"]
 
-                ntf_typ = get_ntf_type_by_name(param_name, currreading, lowth, upth)
+                print(f"Device {devnm}: Lower={lowth}, Upper={upth}, Current={currreading}")
+
+                ntf_typ = get_ntf_type_by_id(param_id, currreading, lowth, upth)
 
                 message = build_message(ntf_typ, devnm)
                 phones, emails = get_contact_info(devid)
@@ -309,23 +321,43 @@ def check_and_notify():
                 flat_phones = []
                 for p in phones:
                     if p:
-                        for num in p.split(","):
-                            flat_phones.append(num.strip())
+                        parts = p.split(",")
+                        for part in parts:
+                            num = part.strip()
+                            if num:
+                                flat_phones.append(num)
 
+                # Deduplicate final list
                 unique_phones = list(set(flat_phones))
+
+                print("Unique phone numbers:", unique_phones)
+                # ---- FIX END ----
 
                 for phone in unique_phones:
                     send_sms(phone, message)
 
                 for em in emails:
                     if currreading > upth:
-                        email_subject = f"IoT Alarm Notification for {device_name} | HIGH"
-                    elif currreading < lowth:
-                        email_subject = f"IoT Alarm Notification for {device_name} | LOW"
+                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
+                    elif currreading < lowth:    
+                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
                     else:
-                        continue
+                        # NORMAL CONDITION → No mail
+                        continue  
+                    
+                    email_body = f"""
+                    <h2>⚠ IoT Alert Triggered</h2>
+                    <p><b>Device:</b> {device_name}</p>
+                    <p><b>Current Reading:</b> {dev_reading}</p>
+                    <p><b>Limits:</b> {lowth} - {upth}</p>
+                    <p>Please check the device immediately.</p>
+                    <p></p>
+                    <p></p>
+                    <p>Regards</p>
+                    <p>Team Fertisense.</p>
+                    """
 
-                    send_email_brevo(em, email_subject, message)
+                    send_email_brevo(em, email_subject, email_body)
 
                 now_ts = datetime.now(TZ)
                 cursor.execute("""
@@ -340,9 +372,10 @@ def check_and_notify():
             # ================== SECOND NOTIFICATION ==================
             elif first_sms_done and is_active == 1 and not second_sms_done:
 
-                first_sms_dt = TZ.localize(
-                    datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
+                first_sms_dt = datetime.combine(
+                    alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"])
                 )
+                first_sms_dt = TZ.localize(first_sms_dt)
                 diff_hours = (now - first_sms_dt).total_seconds() / 3600
 
                 if diff_hours >= 6:
@@ -357,7 +390,7 @@ def check_and_notify():
 
                     cursor.execute("""
     SELECT
-        MP.PARAMETER_NAME,
+        MP.PARAMETER_ID,
         MP.UPPER_THRESHOLD,
         MP.LOWER_THRESHOLD,
         DRL.READING AS CURRENT_READING
@@ -381,13 +414,14 @@ def check_and_notify():
 
                     currreading = reading_row["CURRENT_READING"]
                     if currreading is None:
+                        print(f"⚠️ Skipping device {devnm} as current reading is NULL.")
                         continue
 
                     upth = reading_row["UPPER_THRESHOLD"]
                     lowth = reading_row["LOWER_THRESHOLD"]
-                    param_name = reading_row["PARAMETER_NAME"]
+                    param_id = reading_row["PARAMETER_ID"]
 
-                    ntf_typ = get_ntf_type_by_name(param_name, currreading, lowth, upth)
+                    ntf_typ = get_ntf_type_by_id(param_id, currreading, lowth, upth)
 
                     message = build_message(ntf_typ, devnm)
                     phones, emails = get_contact_info(devid)
@@ -395,20 +429,39 @@ def check_and_notify():
                     flat_phones = []
                     for p in phones:
                         if p:
-                            for num in p.split(","):
-                                flat_phones.append(num.strip())
+                            parts= p.split(",")
+                            for part in parts:
+                                num = part.strip()
+                                if num:
+                                    flat_phones.append(num)
 
                     unique_phones = list(set(flat_phones))
+                    print("Unique phone numbers:", unique_phones)
 
                     for phone in unique_phones:
                         send_sms(phone, message)
 
                     for em in emails:
-                        send_email_brevo(
-                            em,
-                            f"IoT Alarm Notification (2nd) for {device_name}",
-                            message
-                        )
+                        if currreading > upth:
+                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
+                        elif currreading < lowth:    
+                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
+                        else:
+                            # NORMAL CONDITION → No mail
+                            continue  
+                        email_body = f"""
+                        <h2>⚠ IoT Alert Triggered</h2>
+                        <p><b>Device:</b> {device_name}</p>
+                        <p><b>Current Reading:</b> {dev_reading}</p>
+                        <p><b>Limits:</b> {lowth} - {upth}</p>
+                        <p>Please check the device immediately.</p>
+                        <p></p>
+                        <p></p>
+                        <p>Regards</p>
+                        <p>Team Fertisense.</p>
+                        """
+
+                    send_email_brevo(em, email_subject, email_body)
 
                     now_ts = datetime.now(TZ)
                     cursor.execute("""
@@ -418,14 +471,15 @@ def check_and_notify():
                     """, (now_ts.time(), alarm_id))
 
                     conn.commit()
-                    second_notification_sent[alarm_id] = True
                     print(f"✅ Second notification sent for alarm {alarm_id}")
-
+                else:
+                   print("Elasped time", diff_seconds)
         cursor.close()
         conn.close()
 
     except Exception as e:
         traceback.print_exc()
+        print("❌ Error in check_and_notify:", e)
 
 
 
