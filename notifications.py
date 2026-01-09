@@ -338,9 +338,9 @@ def check_and_notify():
 
                 for em in emails:
                     if currreading > upth:
-                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
+                        email_subject = f"IoT Alarm Notification for {device_name} | Parameter ID: {param_id} | Current reading is : {dev_reading} and it is HIGHER then normal"
                     elif currreading < lowth:    
-                        email_subject = f"IoT Alarm Notification for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
+                        email_subject = f"IoT Alarm Notification for {device_name} | Parameter ID: {param_id} | Current reading is : {dev_reading} and it is LOWER then normal"
                     else:
                         # NORMAL CONDITION → No mail
                         continue  
@@ -348,6 +348,7 @@ def check_and_notify():
                     email_body = f"""
                     <h2>⚠ IoT Alert Triggered</h2>
                     <p><b>Device:</b> {device_name}</p>
+                    <p><b>Parameter ID:</b> {param_id}</p>
                     <p><b>Current Reading:</b> {dev_reading}</p>
                     <p><b>Limits:</b> {lowth} - {upth}</p>
                     <p>Please check the device immediately.</p>
@@ -443,15 +444,16 @@ def check_and_notify():
 
                     for em in emails:
                         if currreading > upth:
-                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
+                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Parameter ID: {param_id} | Current reading is : {dev_reading} and it is HIGHER then normal"
                         elif currreading < lowth:    
-                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Current reading is : {dev_reading} and it is LOWER then normal"
+                            email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} | Parameter ID: {param_id} | Current reading is : {dev_reading} and it is LOWER then normal"
                         else:
                             # NORMAL CONDITION → No mail
                             continue  
                         email_body = f"""
                         <h2>⚠ IoT Alert Triggered</h2>
                         <p><b>Device:</b> {device_name}</p>
+                        <p><b>Parameter ID:</b> {param_id}</p>
                         <p><b>Current Reading:</b> {dev_reading}</p>
                         <p><b>Limits:</b> {lowth} - {upth}</p>
                         <p>Please check the device immediately.</p>
