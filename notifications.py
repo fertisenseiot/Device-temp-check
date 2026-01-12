@@ -475,7 +475,7 @@ def check_and_notify():
                     now_ts = datetime.now(TZ)
                     cursor.execute("""
                         UPDATE devicealarmlog
-                        SET EMAIL_DATE=%s
+                        SET EMAIL_DATE=%s,EMAIL_TIME=%s
                         WHERE ID=%s
                     """, (now_ts.time(), alarm_id))
 
