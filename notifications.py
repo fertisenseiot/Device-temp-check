@@ -477,7 +477,7 @@ def check_and_notify():
                         UPDATE devicealarmlog
                         SET EMAIL_DATE=%s,EMAIL_TIME=%s
                         WHERE ID=%s
-                    """, (now_ts.time(), alarm_id))
+                    """, (now_ts.time(), now_ts.time(), alarm_id))
 
                     conn.commit()
                     print(f"✅ Second notification sent for alarm {alarm_id}")
