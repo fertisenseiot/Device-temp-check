@@ -246,7 +246,12 @@ def get_call_count(cursor, alarm, phone):
         alarm["ALARM_DATE"]
     ))
     row = cursor.fetchone()
-    return row["cnt"] if row else 0
+
+    if not row:
+        return 0
+
+    # mysql returns dict like {'COUNT(*)': 2}
+    return list(row.values())[0]
 
 def log_call(cursor, alarm, phone, attempt):
     now = datetime.now(TZ)
