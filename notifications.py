@@ -129,12 +129,16 @@ def send_email_brevo(to_email, subject, html_content):
         print("❌ Email failed:", e)
 
 def make_robo_call(phone, message):
-    print("📞 Robo calling", phone)
+    print("📞 Robo calling TO:", phone)
+    print("📞 FROM:", TWILIO_NUMBER)
+    print("📢 MESSAGE:", message)
+
     twilio.calls.create(
         to=phone,
         from_=TWILIO_NUMBER,
         twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>"
     )
+
 
 
 def get_contact_info(device_id):
