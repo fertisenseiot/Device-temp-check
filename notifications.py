@@ -245,7 +245,8 @@ def get_call_count(cursor, alarm, phone):
         phone,
         alarm["ALARM_DATE"]
     ))
-    return cursor.fetchone()[0]
+    row = cursor.fetchone()
+    return row["cnt"] if row else 0
 
 def log_call(cursor, alarm, phone, attempt):
     now = datetime.now(TZ)
