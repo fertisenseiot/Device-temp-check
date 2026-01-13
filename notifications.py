@@ -230,6 +230,13 @@ def safe_time(t_value):
         return (datetime.min + t_value).time()
     except:
         return time(0, 0, 0)
+
+def normalize_phone(num):
+    num = num.strip()
+    if num.startswith("+"):
+        return num
+    return "+91" + num
+
     
 def get_call_count(cursor, alarm, phone):
     cursor.execute("""
@@ -470,17 +477,19 @@ def check_and_notify():
 
                 unique_phones = list(set(flat))
    
-                for phone in unique_phones:
+                for raw in unique_phones:
+                 phone = normalize_phone(raw)   # 🔥 yahin fix lagta hai
 
                  call_count = get_call_count(cursor, alarm, phone)
 
                 if call_count >= 3:
-                    continue
+                  continue
 
                 voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
 
                 make_robo_call(phone, voice_msg)
                 log_call(cursor, alarm, phone, call_count + 1)
+
                 conn.commit()
 
                 print("📞 Robo call", call_count + 1, "to", phone)
