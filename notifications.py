@@ -321,6 +321,12 @@ def check_and_notify():
     "SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s",
     (devid,)
 )
+            
+            
+            # parameter name
+            cursor.execute("SELECT PARAMETER_NAME FROM iot_api_masterparameter WHERE PARAMETER_ID=%s", (alarm["PARAMETER_ID"],))
+            rowp = cursor.fetchone()
+            param_name = rowp["PARAMETER_NAME"] if rowp else "parameter"
             row = cursor.fetchone()
             device_name = row["device_name"] if row else f"Device-{devid}"
 
