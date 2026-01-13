@@ -316,6 +316,14 @@ def check_and_notify():
         for alarm in alarms:
             alarm_id = alarm["ID"]
             devid = alarm["DEVICE_ID"]
+            # 🔥 Always fetch device name for SMS + Robo Call
+            cursor.execute(
+    "SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s",
+    (devid,)
+)
+            row = cursor.fetchone()
+            device_name = row["device_name"] if row else f"Device-{devid}"
+
             alarm_date = alarm["ALARM_DATE"]
             alarm_time = safe_time(alarm["ALARM_TIME"])
             dev_reading = alarm["READING"]
