@@ -132,7 +132,7 @@ def make_robo_call(phone, message):
     print("📞 Robo calling", phone)
     twilio.calls.create(
         to=phone,
-        from_=+19786430698,
+        from_=TWILIO_NUMBER,
         twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>"
     )
 
@@ -316,19 +316,22 @@ def check_and_notify():
         for alarm in alarms:
             alarm_id = alarm["ID"]
             devid = alarm["DEVICE_ID"]
-            # 🔥 Always fetch device name for SMS + Robo Call
+        # 🔥 Fetch device name
             cursor.execute(
-    "SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s",
-    (devid,)
+            "SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s",
+             (devid,)
 )
-            
-            
-            # parameter name
-            cursor.execute("SELECT PARAMETER_NAME FROM iot_api_masterparameter WHERE PARAMETER_ID=%s", (alarm["PARAMETER_ID"],))
-            rowp = cursor.fetchone()
-            param_name = rowp["PARAMETER_NAME"] if rowp else "parameter"
-            row = cursor.fetchone()
-            device_name = row["device_name"] if row else f"Device-{devid}"
+            rows = cursor.fetchall()
+            device_name = rows[0]["device_name"] if rows else f"Device-{devid}"
+
+       # 🔥 Fetch parameter name
+            cursor.execute(
+            "SELECT PARAMETER_NAME FROM iot_api_masterparameter WHERE PARAMETER_ID=%s",
+            (alarm["PARAMETER_ID"],)
+)
+            rows = cursor.fetchall()
+            param_name = rows[0]["PARAMETER_NAME"] if rows else "parameter"
+
 
             alarm_date = alarm["ALARM_DATE"]
             alarm_time = safe_time(alarm["ALARM_TIME"])
