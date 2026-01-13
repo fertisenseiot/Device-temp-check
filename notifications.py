@@ -10,6 +10,15 @@ import os
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 
+from twilio.rest import Client
+
+TWILIO_SID = os.getenv("TWILIO_SID")
+TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
+TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
+
+twilio = Client(TWILIO_SID, TWILIO_TOKEN)
+
+
 devid_for_sms = None
 phone_numbers = ""
 uni_phones =""
@@ -119,6 +128,14 @@ def send_email_brevo(to_email, subject, html_content):
     except ApiException as e:
         print("❌ Email failed:", e)
 
+def make_robo_call(phone, message):
+    print("📞 Robo calling", phone)
+    twilio.calls.create(
+        to=phone,
+        from_=+19786430698,
+        twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>"
+    )
+
 
 def get_contact_info(device_id):
     try:
@@ -213,6 +230,44 @@ def safe_time(t_value):
         return (datetime.min + t_value).time()
     except:
         return time(0, 0, 0)
+    
+def get_call_count(cursor, alarm, phone):
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM alarmcalllog
+        WHERE DEVICE_ID=%s
+        AND PARAMETER_ID=%s
+        AND PHONE_NUM=%s
+        AND ALARM_DATE=%s
+    """, (
+        alarm["DEVICE_ID"],
+        alarm["PARAMETER_ID"],
+        phone,
+        alarm["ALARM_DATE"]
+    ))
+    return cursor.fetchone()[0]
+
+def log_call(cursor, alarm, phone, attempt):
+    now = datetime.now(TZ)
+    cursor.execute("""
+        INSERT INTO alarmcalllog
+        (DEVICE_ID, SENSOR_ID, PARAMETER_ID,
+         ALARM_DATE, ALARM_TIME,
+         PHONE_NUM, CALL_DATE, CALL_TIME, SMS_CALL_FLAG)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """, (
+        alarm["DEVICE_ID"],
+        alarm["PARAMETER_ID"],   # SENSOR_ID not available, so reuse PARAMETER_ID
+        alarm["PARAMETER_ID"],
+        alarm["ALARM_DATE"],
+        alarm["ALARM_TIME"],
+        phone,
+        now.date(),
+        now.time(),
+        attempt
+    ))
+
+# 👆👆 yahan khatam 👆👆
 
 # 🔥🔥 YAHAN RAKHNA HAI 🔥🔥
 def get_ntf_type_by_id(param_id, curr, low, up):
@@ -373,6 +428,40 @@ def check_and_notify():
 
                 conn.commit()
                 print(f"✅ First notification sent for alarm {alarm_id}")
+
+        # ================== ROBO CALL AFTER 7 MIN ==================
+            if first_sms_done and is_active == 1:
+
+                first_sms_dt = datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
+                first_sms_dt = TZ.localize(first_sms_dt)
+
+            if (now - first_sms_dt).total_seconds() >= 420:   # 7 minutes
+
+                phones, _ = get_contact_info(devid)
+
+                flat = []
+                for p in phones:
+                 if p:
+                   for part in p.split(","):
+                    flat.append(part.strip())
+
+                unique_phones = list(set(flat))
+   
+                for phone in unique_phones:
+
+                 call_count = get_call_count(cursor, alarm, phone)
+
+                if call_count >= 3:
+                    continue
+
+                voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
+
+                make_robo_call(phone, voice_msg)
+                log_call(cursor, alarm, phone, call_count + 1)
+                conn.commit()
+
+                print("📞 Robo call", call_count + 1, "to", phone)
+
 
             # ================== SECOND NOTIFICATION ==================
             elif first_sms_done and is_active == 1 and not second_sms_done:
