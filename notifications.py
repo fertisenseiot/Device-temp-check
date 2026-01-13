@@ -234,7 +234,7 @@ def safe_time(t_value):
 def get_call_count(cursor, alarm, phone):
     cursor.execute("""
         SELECT COUNT(*)
-        FROM alarmcalllog
+        FROM iot_api_devicealarmcalllog
         WHERE DEVICE_ID=%s
         AND PARAMETER_ID=%s
         AND PHONE_NUM=%s
@@ -250,7 +250,7 @@ def get_call_count(cursor, alarm, phone):
 def log_call(cursor, alarm, phone, attempt):
     now = datetime.now(TZ)
     cursor.execute("""
-        INSERT INTO alarmcalllog
+        INSERT INTO iot_api_devicealarmcalllog
         (DEVICE_ID, SENSOR_ID, PARAMETER_ID,
          ALARM_DATE, ALARM_TIME,
          PHONE_NUM, CALL_DATE, CALL_TIME, SMS_CALL_FLAG)
