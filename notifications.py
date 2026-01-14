@@ -244,13 +244,13 @@ def get_contact_info(device_id):
 second_notification_sent = {}
 
 
-def safe_time(t_value):
-    if isinstance(t_value, time):
-        return t_value
-    try:
-        return (datetime.min + t_value).time()
-    except:
-        return time(0, 0, 0)
+# def safe_time(t_value):
+#     if isinstance(t_value, time):
+#         return t_value
+#     try:
+#         return (datetime.min + t_value).time()
+#     except:
+#         return time(0, 0, 0)
 
 def normalize_phone(num):
     num = num.strip()
@@ -384,10 +384,15 @@ def check_and_notify():
 
 
             alarm_date = alarm["ALARM_DATE"]
-            alarm_time = safe_time(alarm["ALARM_TIME"])
+            # alarm_time = safe_time(alarm["ALARM_TIME"])
             dev_reading = alarm["READING"]
 
-            raised_time = TZ.localize(datetime.combine(alarm_date, alarm_time))
+            # raised_time = TZ.localize(datetime.combine(alarm_date, alarm_time))
+            raised_time = datetime.strptime(
+                f"{alarm['ALARM_DATE']} {alarm['ALARM_TIME']}",
+                "%Y-%m-%d %H:%M:%S.%f"
+            ).replace(tzinfo=TZ)
+
             diff_seconds = (now - raised_time).total_seconds()
 
             first_sms_done = alarm["SMS_DATE"] is not None
@@ -505,8 +510,14 @@ def check_and_notify():
         # ================== ROBO CALL AFTER 7 MIN ==================
             if alarm["SMS_DATE"] and alarm["SMS_TIME"]:
 
-                first_sms_dt = datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
-                first_sms_dt = TZ.localize(first_sms_dt)
+                first_sms_dt = datetime.strptime(
+                    f"{alarm['SMS_DATE']} {alarm['SMS_TIME']}",
+                    "%Y-%m-%d %H:%M:%S.%f"
+                ).replace(tzinfo=TZ)
+                print("⏱ FIRST SMS:", first_sms_dt)
+                print("⏱ NOW:", now)
+                print("⏱ DIFF:", (now - first_sms_dt).total_seconds())
+   
 
             if (now - first_sms_dt).total_seconds() >= 420:
 
@@ -541,7 +552,9 @@ def check_and_notify():
                         break
 
                     # 👉 ONLY ONE CALL PER RUN
-                    make_robo_call(phone)
+                    voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
+                    make_robo_call(phone, voice_msg)
+
                     log_call(cursor, alarm, phone, call_count + 1)
                     conn.commit()
 
@@ -551,10 +564,16 @@ def check_and_notify():
             # ================== SECOND NOTIFICATION ==================
             elif first_sms_done and is_active == 1 and not second_sms_done:
 
-                first_sms_dt = datetime.combine(
-                    alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"])
-                )
-                first_sms_dt = TZ.localize(first_sms_dt)
+                # first_sms_dt = datetime.combine(
+                #     alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"])
+                # )
+                # first_sms_dt = TZ.localize(first_sms_dt)
+                first_sms_dt = datetime.strptime(
+                    f"{alarm['SMS_DATE']} {alarm['SMS_TIME']}",
+                    "%Y-%m-%d %H:%M:%S.%f"
+                ).replace(tzinfo=TZ)
+
+
                 diff_hours = (now - first_sms_dt).total_seconds() / 3600
 
                 if diff_hours >= 6:
