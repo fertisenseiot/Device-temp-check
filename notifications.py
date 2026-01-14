@@ -155,7 +155,7 @@ def make_robo_call(phone, message):
         twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
         timeout=60,   # 🔥 wait only 60 seconds
         status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-        status_callback_event=["answered","completed"]
+        status_callback_event=["answered"]
     )
 
 def get_contact_info(device_id):
@@ -530,26 +530,23 @@ def check_and_notify():
 
                     phone = normalize_phone(raw)
 
-                    # 🛑 stop if someone answered while we were calling others
-                    if is_alarm_answered(cursor, alarm):
-                        print("☎ Alarm acknowledged while calling others. Stopping.")
-                        break
-
                     call_count = get_call_count(cursor, alarm, phone)
 
                     if call_count >= 3:
                         continue
 
-                    voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
+                    # kisi ne already uthaya?
+                    if is_alarm_answered(cursor, alarm):
+                        print("☎ Already answered. Stop.")
+                        break
 
-                    print("📞 Calling", phone)
-                    make_robo_call(phone, voice_msg)
-
+                    # 👉 ONLY ONE CALL PER RUN
+                    make_robo_call(phone)
                     log_call(cursor, alarm, phone, call_count + 1)
                     conn.commit()
 
-                    print("⏳ Waiting 60 seconds for answer...")
-                    t.sleep(65)   # wait for Twilio callback to arrive
+                    print("📞 Called", phone)
+                    break   # 🔥 THIS IS CRITICAL
 
             # ================== SECOND NOTIFICATION ==================
             elif first_sms_done and is_active == 1 and not second_sms_done:
@@ -673,6 +670,5 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
 
 
