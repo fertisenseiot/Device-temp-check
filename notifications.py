@@ -258,6 +258,18 @@ def normalize_phone(num):
         return num
     return "+91" + num
 
+def get_org_centre(cursor, device_id):
+    cursor.execute("""
+        SELECT ORGANIZATION_ID, CENTRE_ID
+        FROM iot_api_masterdevice
+        WHERE DEVICE_ID=%s
+    """, (device_id,))
+    row = cursor.fetchone()
+    if not row:
+        return None, None
+    return row["ORGANIZATION_ID"], row["CENTRE_ID"]
+
+
     
 def get_call_count(cursor, alarm, phone):
     cursor.execute("""
@@ -283,25 +295,35 @@ def get_call_count(cursor, alarm, phone):
 
 def log_call(cursor, alarm, phone, attempt):
     now = datetime.now(TZ)
+
+    # 🔥 yahin se org & centre fetch hoga
+    org_id, centre_id = get_org_centre(cursor, alarm["DEVICE_ID"])
+
     cursor.execute("""
         INSERT INTO iot_api_devicealarmcalllog
         (DEVICE_ID, SENSOR_ID, PARAMETER_ID,
          ALARM_DATE, ALARM_TIME,
-         PHONE_NUM, CALL_DATE, CALL_TIME, SMS_CALL_FLAG)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+         PHONE_NUM, CALL_DATE, CALL_TIME,
+         SMS_CALL_FLAG,
+         ORGANIZATION_ID, CENTRE_ID,
+         CALL_STATUS, CRT_DT)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         alarm["DEVICE_ID"],
-        alarm["PARAMETER_ID"],   # SENSOR_ID not available, so reuse PARAMETER_ID
+        alarm["PARAMETER_ID"],   # SENSOR_ID reuse
         alarm["PARAMETER_ID"],
         alarm["ALARM_DATE"],
         alarm["ALARM_TIME"],
         phone,
         now.date(),
         now.time(),
-        attempt
+        attempt,
+        org_id,
+        centre_id,
+        "INITIATED",             # call shuru hua
+        now.date()
     ))
 
-# 👆👆 yahan khatam 👆👆
 
 # 🔥🔥 YAHAN RAKHNA HAI 🔥🔥
 def get_ntf_type_by_id(param_id, curr, low, up):
