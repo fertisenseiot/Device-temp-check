@@ -12,6 +12,24 @@ from sib_api_v3_sdk.rest import ApiException
 
 from twilio.rest import Client
 
+# 🔥 Check if alarm already acknowledged by any user
+def is_alarm_answered(cursor, alarm):
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM iot_api_devicealarmcalllog
+        WHERE DEVICE_ID=%s
+          AND PARAMETER_ID=%s
+          AND ALARM_DATE=%s
+          AND CALL_STATUS='ANSWERED'
+    """, (
+        alarm["DEVICE_ID"],
+        alarm["PARAMETER_ID"],
+        alarm["ALARM_DATE"]
+    ))
+    row = cursor.fetchone()
+    return list(row.values())[0] > 0
+
+
 TWILIO_SID = os.getenv("TWILIO_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
 TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
@@ -129,17 +147,16 @@ def send_email_brevo(to_email, subject, html_content):
         print("❌ Email failed:", e)
 
 def make_robo_call(phone, message):
-    print("📞 Robo calling TO:", phone)
-    print("📞 FROM:", TWILIO_NUMBER)
-    print("📢 MESSAGE:", message)
+    print("📞 Robo calling", phone)
 
     twilio.calls.create(
         to=phone,
         from_=TWILIO_NUMBER,
-        twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>"
+        twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
+        timeout=60,   # 🔥 wait only 60 seconds
+        status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
+        status_callback_event=["completed"]
     )
-
-
 
 def get_contact_info(device_id):
     try:
@@ -469,35 +486,48 @@ def check_and_notify():
                 first_sms_dt = datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
                 first_sms_dt = TZ.localize(first_sms_dt)
 
-            if (now - first_sms_dt).total_seconds() >= 420:   # 7 minutes
+            if (now - first_sms_dt).total_seconds() >= 420:
+
+            # 🛑 If someone already answered, stop everything
+                if is_alarm_answered(cursor, alarm):
+                    print("☎ Alarm already acknowledged. No more calls.")
+                    continue
 
                 phones, _ = get_contact_info(devid)
 
                 flat = []
                 for p in phones:
-                 if p:
-                   for part in p.split(","):
-                    flat.append(part.strip())
+                    if p:
+                       for part in p.split(","):
+                           flat.append(part.strip())
 
-                unique_phones = list(set(flat))
-   
+                # maintain order
+                unique_phones = list(dict.fromkeys(flat))
+
                 for raw in unique_phones:
-                 phone = normalize_phone(raw)   # 🔥 yahin fix lagta hai
 
-                 call_count = get_call_count(cursor, alarm, phone)
+                    phone = normalize_phone(raw)
 
-                if call_count >= 3:
-                  continue
+                    # 🛑 stop if someone answered while we were calling others
+                    if is_alarm_answered(cursor, alarm):
+                        print("☎ Alarm acknowledged while calling others. Stopping.")
+                        break
 
-                voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
+                    call_count = get_call_count(cursor, alarm, phone)
 
-                make_robo_call(phone, voice_msg)
-                log_call(cursor, alarm, phone, call_count + 1)
+                    if call_count >= 3:
+                        continue
 
-                conn.commit()
+                    voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
 
-                print("📞 Robo call", call_count + 1, "to", phone)
+                    print("📞 Calling", phone)
+                    make_robo_call(phone, voice_msg)
 
+                    log_call(cursor, alarm, phone, call_count + 1)
+                    conn.commit()
+
+                    print("⏳ Waiting 60 seconds for answer...")
+                    t.sleep(65)   # wait for Twilio callback to arrive
 
             # ================== SECOND NOTIFICATION ==================
             elif first_sms_done and is_active == 1 and not second_sms_done:
