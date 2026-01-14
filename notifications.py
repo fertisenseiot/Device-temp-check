@@ -155,7 +155,7 @@ def make_robo_call(phone, message):
         twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
         timeout=60,   # 🔥 wait only 60 seconds
         status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-        status_callback_event=["ansered","completed"]
+        status_callback_event=["answered","completed"]
     )
 
 def get_contact_info(device_id):
@@ -673,5 +673,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
