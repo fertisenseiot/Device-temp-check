@@ -503,7 +503,7 @@ def check_and_notify():
                 print(f"✅ First notification sent for alarm {alarm_id}")
 
         # ================== ROBO CALL AFTER 7 MIN ==================
-            if first_sms_done and is_active == 1:
+            if alarm["SMS_DATE"] and alarm["SMS_TIME"]:
 
                 first_sms_dt = datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
                 first_sms_dt = TZ.localize(first_sms_dt)
