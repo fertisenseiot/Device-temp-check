@@ -155,7 +155,7 @@ def make_robo_call(phone, message):
         twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
         timeout=60,   # 🔥 wait only 60 seconds
         status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-        status_callback_event=["answered"]
+        status_callback_event=["answered","completed"]
     )
 
 def get_contact_info(device_id):
@@ -244,13 +244,13 @@ def get_contact_info(device_id):
 second_notification_sent = {}
 
 
-# def safe_time(t_value):
-#     if isinstance(t_value, time):
-#         return t_value
-#     try:
-#         return (datetime.min + t_value).time()
-#     except:
-#         return time(0, 0, 0)
+def safe_time(t_value):
+    if isinstance(t_value, time):
+        return t_value
+    try:
+        return (datetime.min + t_value).time()
+    except:
+        return time(0, 0, 0)
 
 def normalize_phone(num):
     num = num.strip()
@@ -384,15 +384,10 @@ def check_and_notify():
 
 
             alarm_date = alarm["ALARM_DATE"]
-            # alarm_time = safe_time(alarm["ALARM_TIME"])
+            alarm_time = safe_time(alarm["ALARM_TIME"])
             dev_reading = alarm["READING"]
 
-            # raised_time = TZ.localize(datetime.combine(alarm_date, alarm_time))
-            raised_time = datetime.strptime(
-                f"{alarm['ALARM_DATE']} {alarm['ALARM_TIME']}",
-                "%Y-%m-%d %H:%M:%S.%f"
-            ).replace(tzinfo=TZ)
-
+            raised_time = TZ.localize(datetime.combine(alarm_date, alarm_time))
             diff_seconds = (now - raised_time).total_seconds()
 
             first_sms_done = alarm["SMS_DATE"] is not None
@@ -508,16 +503,10 @@ def check_and_notify():
                 print(f"✅ First notification sent for alarm {alarm_id}")
 
         # ================== ROBO CALL AFTER 7 MIN ==================
-            if alarm["SMS_DATE"] and alarm["SMS_TIME"]:
+            if first_sms_done and is_active == 1:
 
-                first_sms_dt = datetime.strptime(
-                    f"{alarm['SMS_DATE']} {alarm['SMS_TIME']}",
-                    "%Y-%m-%d %H:%M:%S.%f"
-                ).replace(tzinfo=TZ)
-                print("⏱ FIRST SMS:", first_sms_dt)
-                print("⏱ NOW:", now)
-                print("⏱ DIFF:", (now - first_sms_dt).total_seconds())
-   
+                first_sms_dt = datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
+                first_sms_dt = TZ.localize(first_sms_dt)
 
             if (now - first_sms_dt).total_seconds() >= 420:
 
@@ -552,9 +541,7 @@ def check_and_notify():
                         break
 
                     # 👉 ONLY ONE CALL PER RUN
-                    voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
-                    make_robo_call(phone, voice_msg)
-
+                    make_robo_call(phone, message)
                     log_call(cursor, alarm, phone, call_count + 1)
                     conn.commit()
 
@@ -564,16 +551,10 @@ def check_and_notify():
             # ================== SECOND NOTIFICATION ==================
             elif first_sms_done and is_active == 1 and not second_sms_done:
 
-                # first_sms_dt = datetime.combine(
-                #     alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"])
-                # )
-                # first_sms_dt = TZ.localize(first_sms_dt)
-                first_sms_dt = datetime.strptime(
-                    f"{alarm['SMS_DATE']} {alarm['SMS_TIME']}",
-                    "%Y-%m-%d %H:%M:%S.%f"
-                ).replace(tzinfo=TZ)
-
-
+                first_sms_dt = datetime.combine(
+                    alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"])
+                )
+                first_sms_dt = TZ.localize(first_sms_dt)
                 diff_hours = (now - first_sms_dt).total_seconds() / 3600
 
                 if diff_hours >= 6:
