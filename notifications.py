@@ -511,9 +511,9 @@ def check_and_notify():
             if (now - first_sms_dt).total_seconds() >= 420:
 
             # 🛑 If someone already answered, stop everything
-                if is_alarm_answered(cursor, alarm):
-                    print("☎ Alarm already acknowledged. No more calls.")
-                    continue
+                # if is_alarm_answered(cursor, alarm):
+                    # print("☎ Alarm already acknowledged. No more calls.")
+                    # continue
 
                 phones, _ = get_contact_info(devid)
 
@@ -670,5 +670,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
