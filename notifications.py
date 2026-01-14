@@ -155,7 +155,7 @@ def make_robo_call(phone, message):
         twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
         timeout=60,   # 🔥 wait only 60 seconds
         status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-        status_callback_event=["answered","completed"]
+        status_callback_event=["completed"]
     )
 
 def get_contact_info(device_id):
@@ -258,18 +258,6 @@ def normalize_phone(num):
         return num
     return "+91" + num
 
-def get_org_centre(cursor, device_id):
-    cursor.execute("""
-        SELECT ORGANIZATION_ID, CENTRE_ID
-        FROM iot_api_masterdevice
-        WHERE DEVICE_ID=%s
-    """, (device_id,))
-    row = cursor.fetchone()
-    if not row:
-        return None, None
-    return row["ORGANIZATION_ID"], row["CENTRE_ID"]
-
-
     
 def get_call_count(cursor, alarm, phone):
     cursor.execute("""
@@ -295,35 +283,25 @@ def get_call_count(cursor, alarm, phone):
 
 def log_call(cursor, alarm, phone, attempt):
     now = datetime.now(TZ)
-
-    # 🔥 yahin se org & centre fetch hoga
-    org_id, centre_id = get_org_centre(cursor, alarm["DEVICE_ID"])
-
     cursor.execute("""
         INSERT INTO iot_api_devicealarmcalllog
         (DEVICE_ID, SENSOR_ID, PARAMETER_ID,
          ALARM_DATE, ALARM_TIME,
-         PHONE_NUM, CALL_DATE, CALL_TIME,
-         SMS_CALL_FLAG,
-         ORGANIZATION_ID, CENTRE_ID,
-         CALL_STATUS, CRT_DT)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+         PHONE_NUM, CALL_DATE, CALL_TIME, SMS_CALL_FLAG)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         alarm["DEVICE_ID"],
-        alarm["PARAMETER_ID"],   # SENSOR_ID reuse
+        alarm["PARAMETER_ID"],   # SENSOR_ID not available, so reuse PARAMETER_ID
         alarm["PARAMETER_ID"],
         alarm["ALARM_DATE"],
         alarm["ALARM_TIME"],
         phone,
         now.date(),
         now.time(),
-        attempt,
-        org_id,
-        centre_id,
-        "INITIATED",             # call shuru hua
-        now.date()
+        attempt
     ))
 
+# 👆👆 yahan khatam 👆👆
 
 # 🔥🔥 YAHAN RAKHNA HAI 🔥🔥
 def get_ntf_type_by_id(param_id, curr, low, up):
@@ -511,9 +489,9 @@ def check_and_notify():
             if (now - first_sms_dt).total_seconds() >= 420:
 
             # 🛑 If someone already answered, stop everything
-                # if is_alarm_answered(cursor, alarm):
-                    # print("☎ Alarm already acknowledged. No more calls.")
-                    # continue
+                if is_alarm_answered(cursor, alarm):
+                    print("☎ Alarm already acknowledged. No more calls.")
+                    continue
 
                 phones, _ = get_contact_info(devid)
 
@@ -530,23 +508,26 @@ def check_and_notify():
 
                     phone = normalize_phone(raw)
 
+                    # 🛑 stop if someone answered while we were calling others
+                    if is_alarm_answered(cursor, alarm):
+                        print("☎ Alarm acknowledged while calling others. Stopping.")
+                        break
+
                     call_count = get_call_count(cursor, alarm, phone)
 
                     if call_count >= 3:
                         continue
 
-                    # kisi ne already uthaya?
-                    if is_alarm_answered(cursor, alarm):
-                        print("☎ Already answered. Stop.")
-                        break
+                    voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
 
-                    # 👉 ONLY ONE CALL PER RUN
-                    make_robo_call(phone, message)
+                    print("📞 Calling", phone)
+                    make_robo_call(phone, voice_msg)
+
                     log_call(cursor, alarm, phone, call_count + 1)
                     conn.commit()
 
-                    print("📞 Called", phone)
-                    break   # 🔥 THIS IS CRITICAL
+                    print("⏳ Waiting 60 seconds for answer...")
+                    t.sleep(65)   # wait for Twilio callback to arrive
 
             # ================== SECOND NOTIFICATION ==================
             elif first_sms_done and is_active == 1 and not second_sms_done:
@@ -670,6 +651,5 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
 
 
