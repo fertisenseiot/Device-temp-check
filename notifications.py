@@ -217,6 +217,8 @@ def get_contact_info(device_id):
             FROM userorganizationcentrelink
             WHERE ORGANIZATION_ID_id = %s
               AND CENTRE_ID_id = %s
+              ORDER BY USER_ID_id
+              LIMIT 1
         """, (org_id, centre_id))
 
         users_link = cursor.fetchall()
@@ -570,7 +572,7 @@ def check_and_notify():
                 # t.sleep(65)
                 print("⏳ Waiting for answer (max 60 sec)...")
 
-                for i in range(12):   # 12 × 5 sec = 60 sec
+                for _ in range(12):   # 12 × 5 sec = 60 sec
                   t.sleep(5)
 
               # 🔥 check every 5 seconds if someone answered
