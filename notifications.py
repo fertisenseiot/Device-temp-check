@@ -179,7 +179,7 @@ def get_contact_info(device_id):
 
         today = date.today()
 
-        # ---- Subscription Check First ----
+        # ---- Subscription Check ----
         cursor.execute("""
             SELECT sh.*, msi.Package_Name
             FROM Subcription_History sh
@@ -193,12 +193,12 @@ def get_contact_info(device_id):
         """, (device_id, today))
 
         subscription = cursor.fetchone()
-
         print(f"DEBUG: Subscription for device {device_id} ->", subscription)
 
         if not subscription:
-            return [], []   # Only 2 values
+            return [], []
 
+        # ---- Get device org & centre ----
         cursor.execute("""
             SELECT ORGANIZATION_ID, CENTRE_ID
             FROM iot_api_masterdevice
@@ -212,40 +212,37 @@ def get_contact_info(device_id):
         org_id = device["ORGANIZATION_ID"]
         centre_id = device["CENTRE_ID"]
 
+        # ---- Pick ONLY ONE operator for this centre ----
         cursor.execute("""
-            SELECT USER_ID_id
-            FROM userorganizationcentrelink
-            WHERE ORGANIZATION_ID_id = %s
-              AND CENTRE_ID_id = %s
-              ORDER BY USER_ID_id
-              LIMIT 1
+            SELECT 
+                mu.USER_ID,
+                mu.PHONE,
+                mu.EMAIL,
+                mu.SEND_SMS,
+                mu.SEND_EMAIL
+            FROM userorganizationcentrelink u
+            JOIN master_user mu ON mu.USER_ID = u.USER_ID_id
+            WHERE u.ORGANIZATION_ID_id = %s
+              AND u.CENTRE_ID_id = %s
+              AND mu.ROLE_ID = 3
+              AND mu.SEND_SMS = 1
+            ORDER BY mu.USER_ID
+            LIMIT 1
         """, (org_id, centre_id))
 
-        users_link = cursor.fetchall()
-        user_ids = [u["USER_ID_id"] for u in users_link]
+        row = cursor.fetchone()
 
-        if not user_ids:
+        if not row:
+            print("❌ No operator found for this centre")
             return [], []
 
-        format_strings = ",".join(["%s"] * len(user_ids))
-        query = f"""
-            SELECT USER_ID, PHONE, EMAIL, SEND_SMS, SEND_EMAIL
-            FROM master_user
-            WHERE USER_ID IN ({format_strings})
-              AND (SEND_SMS = 1 OR SEND_EMAIL = 1)
-        """
+        phone_numbers = [row["PHONE"]]
+        email_ids = [row["EMAIL"]] if row["SEND_EMAIL"] == 1 else []
 
-        cursor.execute(query, tuple(user_ids))
-        users = cursor.fetchall()
-
-        phone_numbers = [u["PHONE"] for u in users if u["SEND_SMS"] == 1]
-        print("Availablephone numbers",phone_numbers)
-        #uni_phones = list(set(phone_numbers))
-        email_ids = [u["EMAIL"] for u in users if u["SEND_EMAIL"] == 1]
-       
+        print("🔥 FINAL OPERATOR:", row["USER_ID"], row["PHONE"])
 
         return phone_numbers, email_ids
-        
+
     except Exception as e:
         print("❌ Error in get_contact_info:", e)
         return [], []
@@ -255,6 +252,7 @@ def get_contact_info(device_id):
             cursor.close()
         if "conn" in locals() and conn.is_connected():
             conn.close()
+
 
 
 second_notification_sent = {}
