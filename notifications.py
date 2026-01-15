@@ -391,6 +391,7 @@ def check_and_notify():
         now = datetime.now(TZ)
 
         for alarm in alarms:
+            elapsed=0
             alarm_id = alarm["ID"]
             devid = alarm["DEVICE_ID"]
         # 🔥 Fetch device name
@@ -713,5 +714,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
