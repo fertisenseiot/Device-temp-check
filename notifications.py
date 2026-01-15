@@ -529,6 +529,10 @@ def check_and_notify():
 
                 conn.commit()
                 print(f"✅ First notification sent for alarm {alarm_id}")
+                first_sms_done = True
+                alarm["SMS_DATE"] = now_ts.date()
+                alarm["SMS_TIME"] = now_ts.time()
+
 
         # ================== ROBO CALL AFTER 7 MIN ==================
                 if first_sms_done and is_active == 1:
