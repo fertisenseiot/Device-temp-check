@@ -495,51 +495,56 @@ def check_and_notify():
                 print(f"✅ First notification sent for alarm {alarm_id}")
 
         # ================== ROBO CALL AFTER 7 MIN ==================
-            if first_sms_done and is_active == 1:
+                if first_sms_done and is_active == 1:
 
-                first_sms_dt = datetime.combine(alarm["SMS_DATE"], safe_time(alarm["SMS_TIME"]))
-                first_sms_dt = TZ.localize(first_sms_dt)
+                    first_sms_dt = datetime.combine(
+                    alarm["SMS_DATE"],
+                    safe_time(alarm["SMS_TIME"])
+                 )
+                    first_sms_dt = TZ.localize(first_sms_dt)
 
-            if (now - first_sms_dt).total_seconds() >= 420:
+                    elapsed = (now - first_sms_dt).total_seconds()
+                    print("⏳ Seconds since first SMS:", elapsed)
 
-            # 🛑 If someone already answered, stop everything
-                if is_alarm_answered(cursor, alarm):
-                    print("☎ Alarm already acknowledged. No more calls.")
-                    continue
+                if elapsed >= 60:
 
-                phones, _ = get_contact_info(devid)
+                  if is_alarm_answered(cursor, alarm):
+                   print("☎ Alarm already acknowledged. No more calls.")
+            continue
 
-                flat = []
-                for p in phones:
-                    if p:
-                       for part in p.split(","):
-                           flat.append(part.strip())
+        phones, _ = get_contact_info(devid)
 
-                # maintain order
-                unique_phones = list(dict.fromkeys(flat))
+        flat = []
+        for p in phones:
+            if p:
+                for part in p.split(","):
+                    flat.append(part.strip())
 
-                for raw in unique_phones:
+        unique_phones = list(dict.fromkeys(flat))
 
-                    phone = normalize_phone(raw)
+        for raw in unique_phones:
 
-                    # 🛑 stop if someone answered while we were calling others
-                    if is_alarm_answered(cursor, alarm):
-                        print("☎ Alarm acknowledged while calling others. Stopping.")
-                        break
+            phone = normalize_phone(raw)
 
-                    call_count = get_call_count(cursor, alarm, phone)
+            if is_alarm_answered(cursor, alarm):
+                break
 
-                    if call_count >= 3:
-                        continue
+            call_count = get_call_count(cursor, alarm, phone)
 
-                    voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
+            if call_count >= 3:
+                continue
 
-                    print("📞 Calling", phone)
-                    if make_robo_call(phone, voice_msg):
-                      log_call(cursor, alarm, phone, call_count + 1)
-                      conn.commit()
-                    else:
-                          print("❌ Call not logged because Twilio failed")
+            voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
+
+            print("📞 Calling", phone)
+
+            if make_robo_call(phone, voice_msg):
+                log_call(cursor, alarm, phone, call_count + 1)
+                conn.commit()
+
+                print("⏳ Waiting 60 seconds...")
+                t.sleep(65)
+
 
 
             # ================== SECOND NOTIFICATION ==================
