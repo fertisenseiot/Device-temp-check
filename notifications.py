@@ -297,22 +297,46 @@ def get_call_count(cursor, alarm, phone):
 
 def log_call(cursor, alarm, phone, attempt):
     now = datetime.now(TZ)
+
+    # 🔥 Device se Org & Centre nikaalo
+    cursor.execute("""
+        SELECT ORGANIZATION_ID, CENTRE_ID
+        FROM iot_api_masterdevice
+        WHERE DEVICE_ID = %s
+    """, (alarm["DEVICE_ID"],))
+
+    row = cursor.fetchone()
+    org_id = row["ORGANIZATION_ID"] if row else None
+    centre_id = row["CENTRE_ID"] if row else None
+
     cursor.execute("""
         INSERT INTO iot_api_devicealarmcalllog
-        (DEVICE_ID, SENSOR_ID, PARAMETER_ID,
-         ALARM_DATE, ALARM_TIME,
-         PHONE_NUM, CALL_DATE, CALL_TIME, SMS_CALL_FLAG)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        (
+            DEVICE_ID,
+            SENSOR_ID,
+            PARAMETER_ID,
+            ALARM_DATE,
+            ALARM_TIME,
+            PHONE_NUM,
+            CALL_DATE,
+            CALL_TIME,
+            SMS_CALL_FLAG,
+            ORGANIZATION_ID,
+            CENTRE_ID
+        )
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         alarm["DEVICE_ID"],
-        alarm["PARAMETER_ID"],   # SENSOR_ID not available, so reuse PARAMETER_ID
+        alarm["PARAMETER_ID"],   # SENSOR_ID (reuse)
         alarm["PARAMETER_ID"],
         alarm["ALARM_DATE"],
         alarm["ALARM_TIME"],
         phone,
         now.date(),
         now.time(),
-        attempt
+        attempt,
+        org_id,
+        centre_id
     ))
 
 # 👆👆 yahan khatam 👆👆
