@@ -529,10 +529,6 @@ def check_and_notify():
 
                 conn.commit()
                 print(f"✅ First notification sent for alarm {alarm_id}")
-                first_sms_done = True
-                alarm["SMS_DATE"] = now_ts.date()
-                alarm["SMS_TIME"] = now_ts.time()
-
 
         # ================== ROBO CALL AFTER 7 MIN ==================
                 if first_sms_done and is_active == 1:
@@ -546,11 +542,11 @@ def check_and_notify():
                     elapsed = (now - first_sms_dt).total_seconds()
                     print("⏳ Seconds since first SMS:", elapsed)
 
-            #     if elapsed >= 60:
+                if elapsed >= 60:
 
-            #       if is_alarm_answered(cursor, alarm):
-            #        print("☎ Alarm already acknowledged. No more calls.")
-            # continue
+                  if is_alarm_answered(cursor, alarm):
+                   print("☎ Alarm already acknowledged. No more calls.")
+            continue
 
         phones, _ = get_contact_info(devid)
 
@@ -719,5 +715,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
