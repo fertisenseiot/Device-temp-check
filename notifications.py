@@ -244,8 +244,7 @@ ORDER BY mu.USER_ID
         email_ids = []
 
         for r in rows:
-            for part in r["PHONE"].split(","):
-                 phone_numbers.append(part.strip())
+            phone_numbers.append(r["PHONE"])
             if r["SEND_EMAIL"] == 1:
                email_ids.append(r["EMAIL"])
 
