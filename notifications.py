@@ -36,6 +36,11 @@ TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
 
 twilio = Client(TWILIO_SID, TWILIO_TOKEN)
 
+print("TWILIO_SID =", TWILIO_SID)
+print("TWILIO_TOKEN =", TWILIO_TOKEN)
+print("TWILIO_NUMBER =", TWILIO_NUMBER)
+
+
 
 devid_for_sms = None
 phone_numbers = ""
@@ -149,14 +154,23 @@ def send_email_brevo(to_email, subject, html_content):
 def make_robo_call(phone, message):
     print("📞 Robo calling", phone)
 
-    twilio.calls.create(
-        to=phone,
-        from_=TWILIO_NUMBER,
-        twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
-        timeout=60,   # 🔥 wait only 60 seconds
-        status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-        status_callback_event=["completed"]
-    )
+    try:
+        call = twilio.calls.create(
+            to=phone,
+            from_=TWILIO_NUMBER,
+            twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
+            timeout=60,
+            status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
+            status_callback_event=["initiated", "ringing", "answered", "completed"]
+        )
+
+        print("✅ CALL CREATED:", call.sid)
+        return True
+
+    except Exception as e:
+        print("❌ TWILIO CALL FAILED:", e)
+        return False
+
 
 def get_contact_info(device_id):
     try:
@@ -521,13 +535,12 @@ def check_and_notify():
                     voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
 
                     print("📞 Calling", phone)
-                    make_robo_call(phone, voice_msg)
+                    if make_robo_call(phone, voice_msg):
+                      log_call(cursor, alarm, phone, call_count + 1)
+                      conn.commit()
+                    else:
+                          print("❌ Call not logged because Twilio failed")
 
-                    log_call(cursor, alarm, phone, call_count + 1)
-                    conn.commit()
-
-                    print("⏳ Waiting 60 seconds for answer...")
-                    t.sleep(65)   # wait for Twilio callback to arrive
 
             # ================== SECOND NOTIFICATION ==================
             elif first_sms_done and is_active == 1 and not second_sms_done:
