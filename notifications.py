@@ -391,7 +391,6 @@ def check_and_notify():
         now = datetime.now(TZ)
 
         for alarm in alarms:
-            elapsed=0
             alarm_id = alarm["ID"]
             devid = alarm["DEVICE_ID"]
         # 🔥 Fetch device name
@@ -563,7 +562,6 @@ def check_and_notify():
             phone = normalize_phone(raw)
 
             if is_alarm_answered(cursor, alarm):
-                print("☎ Someone already answered. Stopping calls.")
                 break
 
             call_count = get_call_count(cursor, alarm, phone)
@@ -584,12 +582,12 @@ def check_and_notify():
                 print("⏳ Waiting for answer (max 60 sec)...")
 
                 for _ in range(12):   # 12 × 5 sec = 60 sec
-                    t.sleep(5)
+                  t.sleep(5)
 
               # 🔥 check every 5 seconds if someone answered
-                    if is_alarm_answered(cursor, alarm):
-                         print("☎ Someone answered. Stopping further calls.")
-                         return   # EXIT entire notification run
+                if is_alarm_answered(cursor, alarm):
+                    print("☎ Someone answered. Stopping further calls.")
+                    return   # EXIT entire notification run
 
 
 
@@ -715,6 +713,5 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
 
 
