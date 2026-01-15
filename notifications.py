@@ -566,8 +566,17 @@ def check_and_notify():
                 log_call(cursor, alarm, phone, call_count + 1)
                 conn.commit()
 
-                print("⏳ Waiting 60 seconds...")
-                t.sleep(65)
+                # print("⏳ Waiting 60 seconds...")
+                # t.sleep(65)
+                print("⏳ Waiting for answer (max 60 sec)...")
+
+                for i in range(12):   # 12 × 5 sec = 60 sec
+                  t.sleep(5)
+
+              # 🔥 check every 5 seconds if someone answered
+                if is_alarm_answered(cursor, alarm):
+                    print("☎ Someone answered. Stopping further calls.")
+                    return   # EXIT entire notification run
 
 
 
