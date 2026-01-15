@@ -215,31 +215,41 @@ def get_contact_info(device_id):
         # ---- Pick ONLY ONE operator for this centre ----
         cursor.execute("""
             SELECT 
-                mu.USER_ID,
-                mu.PHONE,
-                mu.EMAIL,
-                mu.SEND_SMS,
-                mu.SEND_EMAIL
-            FROM userorganizationcentrelink u
-            JOIN master_user mu ON mu.USER_ID = u.USER_ID_id
-            WHERE u.ORGANIZATION_ID_id = %s
-              AND u.CENTRE_ID_id = %s
-              AND mu.ROLE_ID = 3
-              AND mu.SEND_SMS = 1
-            ORDER BY mu.USER_ID
-            LIMIT 1
+    mu.USER_ID,
+    mu.PHONE,
+    mu.EMAIL,
+    mu.SEND_SMS,
+    mu.SEND_EMAIL
+FROM userorganizationcentrelink u
+JOIN master_user mu ON mu.USER_ID = u.USER_ID_id
+WHERE u.ORGANIZATION_ID_id = %s
+  AND u.CENTRE_ID_id = %s
+  AND mu.ROLE_ID = 3
+  AND mu.SEND_SMS = 1
+ORDER BY mu.USER_ID
+
         """, (org_id, centre_id))
 
-        row = cursor.fetchone()
+        # row = cursor.fetchone()
 
-        if not row:
+        # phone_numbers = [row["PHONE"]]
+        # email_ids = [row["EMAIL"]] if row["SEND_EMAIL"] == 1 else []
+        rows = cursor.fetchall()
+        
+        if not rows:
             print("❌ No operator found for this centre")
             return [], []
+        
+        phone_numbers = []
+        email_ids = []
 
-        phone_numbers = [row["PHONE"]]
-        email_ids = [row["EMAIL"]] if row["SEND_EMAIL"] == 1 else []
+        for r in rows:
+            phone_numbers.append(r["PHONE"])
+            if r["SEND_EMAIL"] == 1:
+               email_ids.append(r["EMAIL"])
 
-        print("🔥 FINAL OPERATOR:", row["USER_ID"], row["PHONE"])
+
+        print("🔥 FINAL OPERATOR:", phone_numbers)
 
         return phone_numbers, email_ids
 
