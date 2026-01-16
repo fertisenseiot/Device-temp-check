@@ -161,15 +161,15 @@ def make_robo_call(phone, message):
             twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
             timeout=60,
             status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-            status_callback_event=["initiated", "ringing", "answered", "completed"]
+            status_callback_event=["initiated", "ringing", "in-progress", "completed"]
         )
 
         print("✅ CALL CREATED:", call.sid)
-        return True
+        return call.sid
 
     except Exception as e:
         print("❌ TWILIO CALL FAILED:", e)
-        return False
+        return None
 
 
 def get_contact_info(device_id):
@@ -323,7 +323,7 @@ def was_last_call_answered(cursor, alarm, phone):
     return row and row["CALL_STATUS"] == "ANSWERED"
 
 
-def log_call(cursor, alarm, phone, attempt):
+def log_call(cursor, alarm, phone, attempt, call_sid):
     now = datetime.now(TZ)
 
     # 🔥 Device se Org & Centre nikaalo
@@ -350,9 +350,10 @@ def log_call(cursor, alarm, phone, attempt):
             CALL_TIME,
             SMS_CALL_FLAG,
             ORGANIZATION_ID,
-            CENTRE_ID
+            CENTRE_ID,
+            CALL_SID
         )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         alarm["DEVICE_ID"],
         alarm["PARAMETER_ID"],   # SENSOR_ID (reuse)
@@ -619,10 +620,10 @@ def check_and_notify():
                         print("📞 Calling", phone)
 
                         voice_message = build_message(ntf_typ, device_name)
-                        call_success = make_robo_call(phone, voice_message)
+                        call_sid = make_robo_call(phone, voice_message)
 
-                        if call_success:
-                            log_call(cursor, alarm, phone, call_count + 1)
+                        if call_sid:
+                            log_call(cursor, alarm, phone, call_count + 1, call_sid)
                             conn.commit()
 
                         t.sleep(60)
