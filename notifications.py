@@ -562,14 +562,14 @@ def check_and_notify():
                 elapsed = (now - first_sms_dt).total_seconds()
                 print("⏳ Seconds since first SMS:", elapsed)
 
-                if elapsed >= 30:   # 🔥 5 min (cron ke hisaab se)
+                if elapsed >= 300:   # 🔥 5 min (cron ke hisaab se)
 
-                   if is_alarm_answered(cursor, alarm):
-                       print("☎ Already answered. Skipping calls.")
-                       continue
+                    if is_alarm_answered(cursor, alarm):
+                        print("☎ Already answered. Skipping calls.")
+                        continue
 
                     # 🔥 RE-FETCH READING (cron-safe)
-                cursor.execute("""
+                    cursor.execute("""
                         SELECT
                             MP.PARAMETER_NAME,
                             MP.UPPER_THRESHOLD,
@@ -584,36 +584,36 @@ def check_and_notify():
                         LIMIT 1
                     """, (devid, alarm["PARAMETER_ID"]))
 
-                reading_row = cursor.fetchone()
-                if not reading_row or reading_row["CURRENT_READING"] is None:
+                    reading_row = cursor.fetchone()
+                    if not reading_row or reading_row["CURRENT_READING"] is None:
                         print("⚠️ No reading for robo call")
                         continue
 
-                currreading = reading_row["CURRENT_READING"]
-                upth = reading_row["UPPER_THRESHOLD"]
-                lowth = reading_row["LOWER_THRESHOLD"]
-                param_name = reading_row["PARAMETER_NAME"]
+                    currreading = reading_row["CURRENT_READING"]
+                    upth = reading_row["UPPER_THRESHOLD"]
+                    lowth = reading_row["LOWER_THRESHOLD"]
+                    param_name = reading_row["PARAMETER_NAME"]
 
                     # 🔥 ntf_typ YAHAN DEFINE KARNA HI PADEGA
-                ntf_typ = get_ntf_type_by_id(
-                    alarm["PARAMETER_ID"],
-                    currreading,
-                    lowth,
-                    upth
+                    ntf_typ = get_ntf_type_by_id(
+                       alarm["PARAMETER_ID"],
+                       currreading,
+                       lowth,
+                       upth
                     )
 
 
-                phones, _ = get_contact_info(devid)
+                    phones, _ = get_contact_info(devid)
 
-                flat = []
-                for p in phones:
+                    flat = []
+                    for p in phones:
                         if p:
                             for part in p.split(","):
                                 flat.append(part.strip())
 
-                unique_phones = list(dict.fromkeys(flat))
+                    unique_phones = list(dict.fromkeys(flat))
 
-                for raw in unique_phones:
+                    for raw in unique_phones:
                         phone = normalize_phone(raw)
 
                         call_count = get_call_count(cursor, alarm, phone)
@@ -762,6 +762,5 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
 
 
