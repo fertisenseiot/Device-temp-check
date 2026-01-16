@@ -562,7 +562,7 @@ def check_and_notify():
                 elapsed = (now - first_sms_dt).total_seconds()
                 print("⏳ Seconds since first SMS:", elapsed)
 
-                if elapsed >= 300:   # 🔥 5 min (cron ke hisaab se)
+                if elapsed >= 30:   # 🔥 5 min (cron ke hisaab se)
 
                    if is_alarm_answered(cursor, alarm):
                        print("☎ Already answered. Skipping calls.")
@@ -762,5 +762,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
