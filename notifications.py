@@ -291,6 +291,7 @@ def get_call_count(cursor, alarm, phone):
         AND PARAMETER_ID=%s
         AND PHONE_NUM=%s
         AND ALARM_DATE=%s
+        AND CALL_STATUS IN ('initiated', 'completed')
     """, (
         alarm["DEVICE_ID"],
         alarm["PARAMETER_ID"],
@@ -299,11 +300,11 @@ def get_call_count(cursor, alarm, phone):
     ))
     row = cursor.fetchone()
 
-    if not row:
-        return 0
+    # if not row:
+    #     return 0
 
     # mysql returns dict like {'COUNT(*)': 2}
-    return list(row.values())[0]
+    return list(row.values())[0] if row else 0
 
 def log_call(cursor, alarm, phone, attempt, call_sid):
     now = datetime.now(TZ)
@@ -612,11 +613,11 @@ def check_and_notify():
                         log_call(cursor, alarm, phone, call_count + 1, call_sid)
                         conn.commit()
 
-                        t.sleep(60)
+                    t.sleep(60)
 
                         # if is_alarm_answered(cursor, alarm):
                         #     print("✅ Alarm answered by someone. Stopping further calls.")
-                        break
+                    break
 
                         # if make_robo_call(phone, "Critical alert. Please check device immediately."):
                         #     log_call(cursor, alarm, phone, call_count + 1)
