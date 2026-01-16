@@ -528,66 +528,59 @@ def check_and_notify():
                 conn.commit()
                 print(f"✅ First notification sent for alarm {alarm_id}")
 
-        # ================== ROBO CALL AFTER 7 MIN ==================
-                if first_sms_done and is_active == 1:
+            # ================== ROBO CALL AFTER 5 MIN ==================
+            if first_sms_done and is_active == 1:
 
-                    first_sms_dt = datetime.combine(
+                first_sms_dt = datetime.combine(
                     alarm["SMS_DATE"],
                     safe_time(alarm["SMS_TIME"])
-                 )
-                    first_sms_dt = TZ.localize(first_sms_dt)
+                )
+                first_sms_dt = TZ.localize(first_sms_dt)
 
-                    elapsed = (now - first_sms_dt).total_seconds()
-                    print("⏳ Seconds since first SMS:", elapsed)
+                elapsed = (now - first_sms_dt).total_seconds()
+                print("⏳ Seconds since first SMS:", elapsed)
 
-                if elapsed >= 60:
+                if elapsed >= 300:   # 🔥 5 min (cron ke hisaab se)
 
-                  if is_alarm_answered(cursor, alarm):
-                   print("☎ Alarm already acknowledged. No more calls.")
-            continue
+                   if is_alarm_answered(cursor, alarm):
+                       print("☎ Already answered. Skipping calls.")
+                       continue
 
-        phones, _ = get_contact_info(devid)
+                phones, _ = get_contact_info(devid)
 
-        flat = []
-        for p in phones:
-            if p:
-                for part in p.split(","):
-                    flat.append(part.strip())
+                flat = []
+                for p in phones:
+                        if p:
+                            for part in p.split(","):
+                                flat.append(part.strip())
 
-        unique_phones = list(dict.fromkeys(flat))
+                unique_phones = list(dict.fromkeys(flat))
 
-        for raw in unique_phones:
+                for raw in unique_phones:
+                        phone = normalize_phone(raw)
 
-            phone = normalize_phone(raw)
+                        call_count = get_call_count(cursor, alarm, phone)
+                        if call_count >= 3:
+                           continue
 
-            if is_alarm_answered(cursor, alarm):
-                break
+                        print("📞 Calling", phone)
 
-            call_count = get_call_count(cursor, alarm, phone)
+                        if currreading > upth:
+                            status_text = "has gone above the higher limit"
+                        elif currreading < lowth:
+                           status_text = "has gone below the lower limit"
+                        else:
+                           status_text = "is back to normal"
 
-            if call_count >= 3:
-                continue
+                        voice_msg = (
+                            f"WARNING!! The {param_name} reading is {currreading} "
+                            f"in {devnm} and it {status_text}. "
+                            f"Please take necessary action. Regards Fertisense L L P."
+                        )
 
-            voice_msg = f"Critical alert. {device_name} has dangerous {param_name}. Please check immediately."
-
-            print("📞 Calling", phone)
-
-            if make_robo_call(phone, voice_msg):
-                log_call(cursor, alarm, phone, call_count + 1)
-                conn.commit()
-
-                # print("⏳ Waiting 60 seconds...")
-                # t.sleep(65)
-                print("⏳ Waiting for answer (max 60 sec)...")
-
-                for _ in range(12):   # 12 × 5 sec = 60 sec
-                  t.sleep(5)
-
-              # 🔥 check every 5 seconds if someone answered
-                if is_alarm_answered(cursor, alarm):
-                    print("☎ Someone answered. Stopping further calls.")
-                    return   # EXIT entire notification run
-
+                        if make_robo_call(phone, voice_msg):
+                            log_call(cursor, alarm, phone, call_count + 1)
+                            conn.commit()
 
 
             # ================== SECOND NOTIFICATION ==================
