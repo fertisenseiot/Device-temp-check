@@ -305,6 +305,24 @@ def get_call_count(cursor, alarm, phone):
     # mysql returns dict like {'COUNT(*)': 2}
     return list(row.values())[0]
 
+def was_last_call_answered(cursor, alarm, phone):
+    cursor.execute("""
+        SELECT CALL_STATUS
+        FROM iot_api_devicealarmcalllog
+        WHERE DEVICE_ID=%s
+          AND PARAMETER_ID=%s
+          AND PHONE_NUM=%s
+        ORDER BY ID DESC
+        LIMIT 1
+    """, (
+        alarm["DEVICE_ID"],
+        alarm["PARAMETER_ID"],
+        phone
+    ))
+    row = cursor.fetchone()
+    return row and row["CALL_STATUS"] == "ANSWERED"
+
+
 def log_call(cursor, alarm, phone, attempt):
     now = datetime.now(TZ)
 
@@ -565,9 +583,21 @@ def check_and_notify():
 
                         print("📞 Calling", phone)
 
-                        if make_robo_call(phone, "Critical alert. Please check device immediately."):
+                        voice_message = build_message(ntf_typ, device_name)
+                        call_success = make_robo_call(phone, voice_message)
+
+                        if call_success:
                             log_call(cursor, alarm, phone, call_count + 1)
                             conn.commit()
+
+                        t.sleep(60)
+
+                        if was_last_call_answered(cursor, alarm, phone):
+                             break
+
+                        # if make_robo_call(phone, "Critical alert. Please check device immediately."):
+                        #     log_call(cursor, alarm, phone, call_count + 1)
+                        #     conn.commit()
 
 
             # ================== SECOND NOTIFICATION ==================
