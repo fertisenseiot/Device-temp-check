@@ -311,13 +311,11 @@ def is_alarm_answered(cursor, alarm):
         FROM iot_api_devicealarmcalllog
         WHERE DEVICE_ID=%s
           AND PARAMETER_ID=%s
-          AND ALARM_DATE=%s
           AND CALL_STATUS='ANSWERED'
           AND CALL_DATE = CURDATE()
     """, (
         alarm["DEVICE_ID"],
-        alarm["PARAMETER_ID"],
-        # alarm["ALARM_DATE"]
+        alarm["PARAMETER_ID"]
     ))
     row = cursor.fetchone()
     return list(row.values())[0] > 0
