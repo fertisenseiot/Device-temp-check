@@ -351,9 +351,10 @@ def log_call(cursor, alarm, phone, attempt, call_sid):
             SMS_CALL_FLAG,
             ORGANIZATION_ID,
             CENTRE_ID,
-            CALL_SID
+            CALL_SID,
+            CALL_STATUS
         )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         alarm["DEVICE_ID"],
         alarm["PARAMETER_ID"],   # SENSOR_ID (reuse)
@@ -365,7 +366,9 @@ def log_call(cursor, alarm, phone, attempt, call_sid):
         now.time(),
         attempt,
         org_id,
-        centre_id
+        centre_id,
+        call_sid,
+        "initiated"
     ))
 
 # 👆👆 yahan khatam 👆👆
