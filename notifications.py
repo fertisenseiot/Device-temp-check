@@ -313,10 +313,11 @@ def is_alarm_answered(cursor, alarm):
           AND PARAMETER_ID=%s
           AND ALARM_DATE=%s
           AND CALL_STATUS='ANSWERED'
+          AND CALL_DATE = CURDATE()
     """, (
         alarm["DEVICE_ID"],
         alarm["PARAMETER_ID"],
-        alarm["ALARM_DATE"]
+        # alarm["ALARM_DATE"]
     ))
     row = cursor.fetchone()
     return list(row.values())[0] > 0
