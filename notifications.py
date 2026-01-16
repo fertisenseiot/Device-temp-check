@@ -19,12 +19,12 @@ def is_alarm_answered(cursor, alarm):
         FROM iot_api_devicealarmcalllog
         WHERE DEVICE_ID=%s
           AND PARAMETER_ID=%s
-          AND ALARM_DATE=%s
+          AND ALARM_TIME=%s
           AND CALL_STATUS='ANSWERED'
     """, (
         alarm["DEVICE_ID"],
         alarm["PARAMETER_ID"],
-        alarm["ALARM_DATE"]
+        alarm["ALARM_TIME"]
     ))
     row = cursor.fetchone()
     return list(row.values())[0] > 0
@@ -290,13 +290,13 @@ def get_call_count(cursor, alarm, phone):
         WHERE DEVICE_ID=%s
         AND PARAMETER_ID=%s
         AND PHONE_NUM=%s
-        AND ALARM_DATE=%s
-        AND CALL_STATUS IN ('initiated', 'completed')
+        AND ALARM_TIME=%s
+        AND CALL_STATUS ='initiated'
     """, (
         alarm["DEVICE_ID"],
         alarm["PARAMETER_ID"],
         phone,
-        alarm["ALARM_DATE"]
+        alarm["ALARM_TIME"]
     ))
     row = cursor.fetchone()
 
@@ -615,9 +615,9 @@ def check_and_notify():
 
                     t.sleep(60)
 
-                        # if is_alarm_answered(cursor, alarm):
-                        #     print("✅ Alarm answered by someone. Stopping further calls.")
-                    break
+                    if is_alarm_answered(cursor, alarm):
+                        print("✅ Alarm answered by someone. Stopping further calls.")
+                        break
 
                         # if make_robo_call(phone, "Critical alert. Please check device immediately."):
                         #     log_call(cursor, alarm, phone, call_count + 1)
