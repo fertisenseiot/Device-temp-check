@@ -565,20 +565,7 @@ def check_and_notify():
 
                         print("📞 Calling", phone)
 
-                        if currreading > upth:
-                            status_text = "has gone above the higher limit"
-                        elif currreading < lowth:
-                           status_text = "has gone below the lower limit"
-                        else:
-                           status_text = "is back to normal"
-
-                        voice_msg = (
-                            f"WARNING!! The {param_name} reading is {currreading} "
-                            f"in {devnm} and it {status_text}. "
-                            f"Please take necessary action. Regards Fertisense L L P."
-                        )
-
-                        if make_robo_call(phone, voice_msg):
+                        if make_robo_call(phone, "Critical alert. Please check device immediately."):
                             log_call(cursor, alarm, phone, call_count + 1)
                             conn.commit()
 
