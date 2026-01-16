@@ -564,6 +564,41 @@ def check_and_notify():
                        print("☎ Already answered. Skipping calls.")
                        continue
 
+                    # 🔥 RE-FETCH READING (cron-safe)
+                cursor.execute("""
+                        SELECT
+                            MP.PARAMETER_NAME,
+                            MP.UPPER_THRESHOLD,
+                            MP.LOWER_THRESHOLD,
+                            DRL.READING AS CURRENT_READING
+                        FROM iot_api_masterparameter MP
+                        LEFT JOIN device_reading_log DRL
+                            ON DRL.PARAMETER_ID = MP.PARAMETER_ID
+                            AND DRL.DEVICE_ID = %s
+                        WHERE MP.PARAMETER_ID = %s
+                        ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
+                        LIMIT 1
+                    """, (devid, alarm["PARAMETER_ID"]))
+
+                reading_row = cursor.fetchone()
+                if not reading_row or reading_row["CURRENT_READING"] is None:
+                        print("⚠️ No reading for robo call")
+                        continue
+
+                currreading = reading_row["CURRENT_READING"]
+                upth = reading_row["UPPER_THRESHOLD"]
+                lowth = reading_row["LOWER_THRESHOLD"]
+                param_name = reading_row["PARAMETER_NAME"]
+
+                    # 🔥 ntf_typ YAHAN DEFINE KARNA HI PADEGA
+                ntf_typ = get_ntf_type_by_id(
+                    alarm["PARAMETER_ID"],
+                    currreading,
+                    lowth,
+                    upth
+                    )
+
+
                 phones, _ = get_contact_info(devid)
 
                 flat = []
