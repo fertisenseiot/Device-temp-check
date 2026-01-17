@@ -157,7 +157,7 @@ def make_robo_call(phone, message):
             twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
             timeout=60,
             status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-            status_callback_event=["initiated", "ringing", "in-progress", "completed"]
+            status_callback_event=["initiated", "completed", "failed", "no-answer"]
         )
 
         print("✅ CALL CREATED:", call.sid)
@@ -606,7 +606,7 @@ def check_and_notify():
 
                     if is_alarm_answered(cursor, alarm):
                         print("✅ Alarm answered by someone. Stopping further calls.")
-                        break
+                        continue
 
                         # if make_robo_call(phone, "Critical alert. Please check device immediately."):
                         #     log_call(cursor, alarm, phone, call_count + 1)
