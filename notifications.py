@@ -157,7 +157,8 @@ def make_robo_call(phone, message):
             twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
             timeout=60,
             status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-            status_callback_event=["initiated", "completed", "failed", "no-answer"]
+            status_callback_event=["initiated","answered","completed","busy","no-answer","failed"]
+
         )
 
         print("✅ CALL CREATED:", call.sid)
@@ -524,6 +525,9 @@ def check_and_notify():
 
             # ================== ROBO CALL AFTER 5 MIN ==================
             if first_sms_done and is_active == 1:
+                if is_alarm_answered(cursor, alarm):
+                        print("🔕 Alarm acknowledged. Calling disabled.")
+                        continue
 
                 first_sms_dt = datetime.combine(
                     alarm["SMS_DATE"],
@@ -586,6 +590,12 @@ def check_and_notify():
                 unique_phones = list(dict.fromkeys(flat))
 
                 for raw in unique_phones:
+
+                    # 🛑 STOP immediately if answered during same cycle
+                    if is_alarm_answered(cursor, alarm):
+                        print("🛑 Alarm answered mid-cycle. Breaking phone loop.")
+                        break
+
                     phone = normalize_phone(raw)
 
                     call_count = get_call_count(cursor, alarm, phone)
@@ -601,13 +611,17 @@ def check_and_notify():
                     if call_sid:
                         log_call(cursor, alarm, phone, call_count + 1, call_sid)
                         conn.commit()
-
-                    t.sleep(60)
-
+                        
+                     # 🔐 extra safety check
                     if is_alarm_answered(cursor, alarm):
-                        print("✅ Alarm answered by someone. Stopping further calls.")
-                        continue
+                        print("🛑 Alarm answered just after call. Exiting loop.")
+                        break
 
+                    # t.sleep(60)
+
+                    
+
+                   
                         # if make_robo_call(phone, "Critical alert. Please check device immediately."):
                         #     log_call(cursor, alarm, phone, call_count + 1)
                         #     conn.commit()
