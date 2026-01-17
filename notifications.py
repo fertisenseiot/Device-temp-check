@@ -15,20 +15,15 @@ from twilio.rest import Client
 # 🔥 Check if alarm already acknowledged by any user
 def is_alarm_answered(cursor, alarm):
     cursor.execute("""
-        SELECT COUNT(*)
+        SELECT 1
         FROM iot_api_devicealarmcalllog
-        WHERE DEVICE_ID=%s
-          AND PARAMETER_ID=%s
-          AND ALARM_TIME=%s
-          AND CALL_STATUS=%s
-    """, (
-        alarm["DEVICE_ID"],
-        alarm["PARAMETER_ID"],
-        alarm["ALARM_TIME"],
-        1 # COMPLETED
-    ))
-    row = cursor.fetchone()
-    return list(row.values())[0] > 0
+        WHERE ALARM_ID = %s
+          AND CALL_STATUS = 1   -- COMPLETED
+        LIMIT 1
+    """, (alarm["ID"],))
+
+    return cursor.fetchone() is not None
+
 
 
 TWILIO_SID = os.getenv("TWILIO_SID")
@@ -288,19 +283,16 @@ def get_call_count(cursor, alarm, phone):
     cursor.execute("""
         SELECT COUNT(*)
         FROM iot_api_devicealarmcalllog
-        WHERE DEVICE_ID=%s
-        AND PARAMETER_ID=%s
-        AND PHONE_NUM=%s
-        AND ALARM_TIME=%s
-        AND CALL_STATUS =%s
+        WHERE ALARM_ID = %s
+          AND PHONE_NUM = %s
+          AND CALL_STATUS IN (0,2,3)
     """, (
-        alarm["DEVICE_ID"],
-        alarm["PARAMETER_ID"],
-        phone,
-        alarm["ALARM_TIME"],
-        0 #PENDING ONLY
+        alarm["ID"],
+        phone
     ))
     row = cursor.fetchone()
+    return list(row.values())[0] if row else 0
+
 
     # if not row:
     #     return 0
@@ -324,7 +316,8 @@ def log_call(cursor, alarm, phone, attempt, call_sid):
 
     cursor.execute("""
         INSERT INTO iot_api_devicealarmcalllog
-        (
+        (   
+            ALARM_ID,
             DEVICE_ID,
             SENSOR_ID,
             PARAMETER_ID,
@@ -339,10 +332,11 @@ def log_call(cursor, alarm, phone, attempt, call_sid):
             CALL_SID,
             CALL_STATUS
         )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
+        alarm["ID"],
         alarm["DEVICE_ID"],
-        alarm["PARAMETER_ID"],   # SENSOR_ID (reuse)
+        alarm["SENSOR_ID"],   # SENSOR_ID (reuse)
         alarm["PARAMETER_ID"],
         alarm["ALARM_DATE"],
         alarm["ALARM_TIME"],
