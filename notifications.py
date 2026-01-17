@@ -525,6 +525,8 @@ def check_and_notify():
 
             # ================== ROBO CALL AFTER 5 MIN ==================
             if first_sms_done and is_active == 1:
+
+
                 if is_alarm_answered(cursor, alarm):
                         print("🔕 Alarm acknowledged. Calling disabled.")
                         continue
@@ -588,34 +590,48 @@ def check_and_notify():
                             flat.append(part.strip())
 
                 unique_phones = list(dict.fromkeys(flat))
+                
+                # 🔥 FIND NEXT ELIGIBLE USER (ONLY ONE)
+                next_phone = None
+                next_attempt = None
 
                 for raw in unique_phones:
 
                     # 🛑 STOP immediately if answered during same cycle
-                    if is_alarm_answered(cursor, alarm):
-                        print("🛑 Alarm answered mid-cycle. Breaking phone loop.")
-                        break
+                    # if is_alarm_answered(cursor, alarm):
+                    #     print("🛑 Alarm answered mid-cycle. Breaking phone loop.")
+                    #     break
 
                     phone = normalize_phone(raw)
-
                     call_count = get_call_count(cursor, alarm, phone)
-                    if call_count >= 3:
-                        print("⛔ Max retries reached for", phone) 
-                        continue
 
-                    print("📞 Calling", phone)
 
-                    voice_message = build_message(ntf_typ, device_name)
-                    call_sid = make_robo_call(phone, voice_message)
-
-                    if call_sid:
-                        log_call(cursor, alarm, phone, call_count + 1, call_sid)
-                        conn.commit()
-                        
-                     # 🔐 extra safety check
-                    if is_alarm_answered(cursor, alarm):
-                        print("🛑 Alarm answered just after call. Exiting loop.")
+                    if call_count < 3:
+                        next_phone = phone
+                        next_attempt = call_count + 1
                         break
+
+                if not next_phone:
+                     print("⛔ All users reached max retry. No more calls.") 
+                     continue
+                    
+                    # 📞 CALL ONLY ONE USER
+                print("📞 Calling", next_phone)
+
+                voice_message = build_message(ntf_typ, device_name)
+                call_sid = make_robo_call(next_phone, voice_message)
+
+                if not call_sid:
+                    print("❌ Call not created, skipping DB log")
+                    continue
+
+                log_call(cursor, alarm, next_phone, next_attempt, call_sid)
+                conn.commit()
+
+                     # 🔐 extra safety check
+                if is_alarm_answered(cursor, alarm):
+                    print("🛑 Alarm answered. Stopping further calls.")
+                    continue
 
                     # t.sleep(60)
 
