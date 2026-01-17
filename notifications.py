@@ -293,13 +293,6 @@ def get_call_count(cursor, alarm, phone):
     row = cursor.fetchone()
     return list(row.values())[0] if row else 0
 
-
-    # if not row:
-    #     return 0
-
-    # mysql returns dict like {'COUNT(*)': 2}
-    return list(row.values())[0] if row else 0
-
 def log_call(cursor, alarm, phone, attempt, call_sid):
     now = datetime.now(TZ)
 
@@ -377,7 +370,7 @@ def check_and_notify():
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT ID, DEVICE_ID, PARAMETER_ID, ALARM_DATE, ALARM_TIME,
+            SELECT ID, DEVICE_ID, PARAMETER_ID, SENSOR_ID, ALARM_DATE, ALARM_TIME,
                    SMS_DATE, SMS_TIME, EMAIL_DATE, READING, IS_ACTIVE
             FROM devicealarmlog
             WHERE IS_ACTIVE = 1
