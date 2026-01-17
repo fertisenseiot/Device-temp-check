@@ -20,11 +20,12 @@ def is_alarm_answered(cursor, alarm):
         WHERE DEVICE_ID=%s
           AND PARAMETER_ID=%s
           AND ALARM_TIME=%s
-          AND CALL_STATUS='ANSWERED'
+          AND CALL_STATUS=%s
     """, (
         alarm["DEVICE_ID"],
         alarm["PARAMETER_ID"],
-        alarm["ALARM_TIME"]
+        alarm["ALARM_TIME"],
+        1 # COMPLETED
     ))
     row = cursor.fetchone()
     return list(row.values())[0] > 0
@@ -291,12 +292,13 @@ def get_call_count(cursor, alarm, phone):
         AND PARAMETER_ID=%s
         AND PHONE_NUM=%s
         AND ALARM_TIME=%s
-        AND CALL_STATUS ='initiated'
+        AND CALL_STATUS =%s
     """, (
         alarm["DEVICE_ID"],
         alarm["PARAMETER_ID"],
         phone,
-        alarm["ALARM_TIME"]
+        alarm["ALARM_TIME"],
+        0 #PENDING ONLY
     ))
     row = cursor.fetchone()
 
@@ -351,7 +353,7 @@ def log_call(cursor, alarm, phone, attempt, call_sid):
         org_id,
         centre_id,
         call_sid,
-        "initiated"
+         0 #PENDING
     ))
 
 # 👆👆 yahan khatam 👆👆
