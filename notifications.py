@@ -606,32 +606,34 @@ def check_and_notify():
                     call_count = get_call_count(cursor, alarm, phone)
 
 
-                    if call_count < 3:
-                        next_phone = phone
-                        next_attempt = call_count + 1
-                        break
+                    if call_count >= 3:
+                        print("⛔ Max retries reached for", phone)
+                        continue
+                        # next_phone = phone
+                        # next_attempt = call_count + 1
+                        # break
 
-                if not next_phone:
-                     print("⛔ All users reached max retry. No more calls.") 
-                     continue
+                # if not next_phone:
+                #      print("⛔ All users reached max retry. No more calls.") 
+                #      continue
                     
                     # 📞 CALL ONLY ONE USER
-                print("📞 Calling", next_phone)
+                    print("📞 Calling", phone)
 
-                voice_message = build_message(ntf_typ, device_name)
-                call_sid = make_robo_call(next_phone, voice_message)
+                    voice_message = build_message(ntf_typ, device_name)
+                    call_sid = make_robo_call(phone, voice_message)
 
-                if not call_sid:
-                    print("❌ Call not created, skipping DB log")
-                    continue
+                    if not call_sid:
+                        print("❌ Call not created for", phone)
+                        continue
 
-                log_call(cursor, alarm, next_phone, next_attempt, call_sid)
-                conn.commit()
+                    log_call(cursor, alarm, phone, call_count + 1,call_sid)
+                    conn.commit()
 
                      # 🔐 extra safety check
-                if is_alarm_answered(cursor, alarm):
-                    print("🛑 Alarm answered. Stopping further calls.")
-                    continue
+                # if is_alarm_answered(cursor, alarm):
+                #     print("🛑 Alarm answered. Stopping further calls.")
+                #     continue
 
                     # t.sleep(60)
 
