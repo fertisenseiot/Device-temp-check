@@ -525,18 +525,22 @@ def check_and_notify():
 
             # ================== ROBO CALL AFTER 5 MIN ==================
             if first_sms_done and is_active == 1:
-                # 🔥 CHECK: is alarm ke liye koi call ho chuki hai kya?
+
+                # 🚫 IMPORTANT: agar is alarm ke liye koi bhi call pehle ho chuki hai
                 cursor.execute("""
-                SELECT 1
+                  SELECT 1
                 FROM iot_api_devicealarmcalllog
                 WHERE ALARM_ID = %s
                 LIMIT 1
-                """, (alarm["ID"],))
+            """, (alarm["ID"],))
 
-                call_exists = cursor.fetchone() is not None
+                call_already_done = cursor.fetchone() is not None
 
-                if call_exists:
-                    continue   # 🚫 cron yahin ruk jaaye
+                if call_already_done:
+                # ❌ cron ko yahin rok do
+                # next retry webhook karega
+                    continue
+
 
 
                 if is_alarm_answered(cursor, alarm):
