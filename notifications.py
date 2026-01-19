@@ -543,42 +543,42 @@ def check_and_notify():
                 if elapsed < 300:   # 🔥 5 min (cron ke hisaab se)
                     continue
 
-                print("ENTERED ROBO CALL BLOCK")
+                # print("ENTERED ROBO CALL BLOCK")
 
-                    # 🔥 RE-FETCH READING (cron-safe)
-                cursor.execute("""
-                        SELECT
-                            MP.PARAMETER_NAME,
-                            MP.UPPER_THRESHOLD,
-                            MP.LOWER_THRESHOLD,
-                            DRL.READING AS CURRENT_READING
-                        FROM iot_api_masterparameter MP
-                        LEFT JOIN device_reading_log DRL
-                            ON DRL.PARAMETER_ID = MP.PARAMETER_ID
-                            AND DRL.DEVICE_ID = %s
-                        WHERE MP.PARAMETER_ID = %s
-                        ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
-                        LIMIT 1
-                    """, (devid, alarm["PARAMETER_ID"]))
+                #     # 🔥 RE-FETCH READING (cron-safe)
+                # cursor.execute("""
+                #         SELECT
+                #             MP.PARAMETER_NAME,
+                #             MP.UPPER_THRESHOLD,
+                #             MP.LOWER_THRESHOLD,
+                #             DRL.READING AS CURRENT_READING
+                #         FROM iot_api_masterparameter MP
+                #         LEFT JOIN device_reading_log DRL
+                #             ON DRL.PARAMETER_ID = MP.PARAMETER_ID
+                #             AND DRL.DEVICE_ID = %s
+                #         WHERE MP.PARAMETER_ID = %s
+                #         ORDER BY DRL.READING_DATE DESC, DRL.READING_TIME DESC
+                #         LIMIT 1
+                #     """, (devid, alarm["PARAMETER_ID"]))
 
-                reading_row = cursor.fetchone()
-                if not reading_row or reading_row["CURRENT_READING"] is None:
-                     print("⚠️ No reading for robo call")
-                     continue
+                # reading_row = cursor.fetchone()
+                # if not reading_row or reading_row["CURRENT_READING"] is None:
+                #      print("⚠️ No reading for robo call")
+                #      continue
 
-                currreading = reading_row["CURRENT_READING"]
-                upth = reading_row["UPPER_THRESHOLD"]
-                lowth = reading_row["LOWER_THRESHOLD"]
-                param_name = reading_row["PARAMETER_NAME"]
+                # currreading = reading_row["CURRENT_READING"]
+                # upth = reading_row["UPPER_THRESHOLD"]
+                # lowth = reading_row["LOWER_THRESHOLD"]
+                # param_name = reading_row["PARAMETER_NAME"]
 
-                    # 🔥 ntf_typ YAHAN DEFINE KARNA HI PADEGA
-                ntf_typ = get_ntf_type_by_id(
-                    alarm["PARAMETER_ID"],
-                    currreading,
-                    lowth,
-                    upth
+                #     # 🔥 ntf_typ YAHAN DEFINE KARNA HI PADEGA
+                # ntf_typ = get_ntf_type_by_id(
+                #     alarm["PARAMETER_ID"],
+                #     currreading,
+                #     lowth,
+                #     upth
                     
-                )
+                # )
 
 
                 phones, _ = get_contact_info(devid)
@@ -586,29 +586,38 @@ def check_and_notify():
                 flat = []
                 for p in phones:
                     if p:
-                        for part in p.split(","):
-                            flat.append(part.strip())
+                        # for part in p.split(","):
+                        #     flat.append(part.strip())
+                        flat.extend([x.strip() for x in p.split(",") if x.strip()])
 
-                unique_phones = list(dict.fromkeys(flat))
-                
-                # 🔥 FIND NEXT ELIGIBLE USER (ONLY ONE)
-                next_phone = None
-                next_attempt = None
 
-                for raw in unique_phones:
+                if not flat:
+                    continue
+
+                first_phone = normalize_phone(flat[0])
+
+                # unique_phones = list(dict.fromkeys(flat))
+
+
+
+                # for raw in unique_phones:
+
+                # if not unique_phones:
+                #     print("❌ No operators found")
+                #     continue
 
                     # 🛑 STOP immediately if answered during same cycle
                     # if is_alarm_answered(cursor, alarm):
                     #     print("🛑 Alarm answered mid-cycle. Breaking phone loop.")
                     #     break
 
-                    phone = normalize_phone(raw)
-                    call_count = get_call_count(cursor, alarm, phone)
+                # phone = normalize_phone(unique_phones[0])
+                    # call_count = get_call_count(cursor, alarm, phone)
 
 
-                    if call_count >= 3:
-                        print("⛔ Max retries reached for", phone)
-                        continue
+                    # if call_count >= 3:
+                    #     print("⛔ Max retries reached for", phone)
+                    #     continue
                         # next_phone = phone
                         # next_attempt = call_count + 1
                         # break
@@ -618,17 +627,17 @@ def check_and_notify():
                 #      continue
                     
                     # 📞 CALL ONLY ONE USER
-                    print("📞 Calling", phone)
+                print("📞 Calling FIRST operator", first_phone)
 
-                    voice_message = build_message(ntf_typ, device_name)
-                    call_sid = make_robo_call(phone, voice_message)
+                voice_message = build_message(ntf_typ, device_name)
+                call_sid = make_robo_call(first_phone, voice_message)
 
-                    if not call_sid:
-                        print("❌ Call not created for", phone)
+                if not call_sid:
+                        print("❌ Call not created for", first_phone)
                         continue
 
-                    log_call(cursor, alarm, phone, call_count + 1,call_sid)
-                    conn.commit()
+                log_call(cursor, alarm, first_phone,1,call_sid)
+                conn.commit()
 
                      # 🔐 extra safety check
                 # if is_alarm_answered(cursor, alarm):
