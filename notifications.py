@@ -525,6 +525,18 @@ def check_and_notify():
 
             # ================== ROBO CALL AFTER 5 MIN ==================
             if first_sms_done and is_active == 1:
+                # 🔥 CHECK: is alarm ke liye koi call ho chuki hai kya?
+                cursor.execute("""
+                SELECT 1
+                FROM iot_api_devicealarmcalllog
+                WHERE ALARM_ID = %s
+                LIMIT 1
+                """, (alarm["ID"],))
+
+                call_exists = cursor.fetchone() is not None
+
+                if call_exists:
+                    continue   # 🚫 cron yahin ruk jaaye
 
 
                 if is_alarm_answered(cursor, alarm):
