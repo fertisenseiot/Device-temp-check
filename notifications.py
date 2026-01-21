@@ -602,13 +602,14 @@ def check_and_notify():
                 phones, _ = get_contact_info(devid)
 
                 cursor.execute("""
-    SELECT COUNT(*)
-    FROM iot_api_devicealarmcalllog
-    WHERE ALARM_ID=%s
-      AND CALL_STATUS IN (0,2,3)
-""", (alarm["ID"],))
-
-                if cursor.fetchone()[0] >= 3:
+                    SELECT COUNT(*)
+                    FROM iot_api_devicealarmcalllog
+                    WHERE ALARM_ID=%s
+                       AND CALL_STATUS IN (0,2,3)
+                """, (alarm["ID"],))
+                
+                row = cursor.fetchone()
+                if row and row["cnt"] >= 3:
                      print("⛔ Max alarm retry reached")
                      continue
 
