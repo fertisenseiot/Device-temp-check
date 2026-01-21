@@ -602,13 +602,14 @@ def check_and_notify():
                 phones, _ = get_contact_info(devid)
 
                 cursor.execute("""
-                    SELECT COUNT(*)
+                    SELECT COUNT(*) AS cnt
                     FROM iot_api_devicealarmcalllog
                     WHERE ALARM_ID=%s
                        AND CALL_STATUS IN (0,2,3)
                 """, (alarm["ID"],))
                 
                 row = cursor.fetchone()
+                print("DEBUG ROW=", row)
                 count = row["cnt"] if row else 0
                 
                 if count >= 3:
