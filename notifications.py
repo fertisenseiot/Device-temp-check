@@ -609,7 +609,9 @@ def check_and_notify():
                 """, (alarm["ID"],))
                 
                 row = cursor.fetchone()
-                if row and row["cnt"] >= 3:
+                count = row["cnt"] if row else 0
+                
+                if count >= 3:
                      print("⛔ Max alarm retry reached")
                      continue
 
