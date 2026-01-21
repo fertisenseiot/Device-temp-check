@@ -528,20 +528,20 @@ def check_and_notify():
             if first_sms_done and is_active == 1:
 
             #     # 🚫 IMPORTANT: agar is alarm ke liye koi bhi call pehle ho chuki hai
-                cursor.execute("""
-                  SELECT 1
-                FROM iot_api_devicealarmcalllog
-                WHERE ALARM_ID = %s
-                  AND CALL_STATUS IN (0,2,3)
-                LIMIT 1
-            """, (alarm["ID"],))
+            #     cursor.execute("""
+            #       SELECT 1
+            #     FROM iot_api_devicealarmcalllog
+            #     WHERE ALARM_ID = %s
+            #       AND CALL_STATUS IN (0,2,3)
+            #     LIMIT 1
+            # """, (alarm["ID"],))
 
-                call_already_done = cursor.fetchone() is not None
+            #     call_already_done = cursor.fetchone() is not None
 
-                if call_already_done:
+            #     if call_already_done:
             #     # ❌ cron ko yahin rok do
             #     # next retry webhook karega
-                     continue
+                    #  continue
 
 
 
@@ -628,7 +628,24 @@ def check_and_notify():
                 if not flat:
                     continue
 
-                first_phone = normalize_phone(flat[0])
+                # first_phone = normalize_phone(flat[0])
+                
+                next_phone = None
+
+                for raw_phone in flat:
+                    phone = normalize_phone(raw_phone)
+
+                    call_count = get_call_count(cursor, alarm, phone)
+
+                    if call_count == 0:
+                        next_phone = phone
+                        break
+                if not next_phone:
+                    print("⛔ All operators already tried")
+                    continue
+
+                first_phone = next_phone
+
 
                 # unique_phones = list(dict.fromkeys(flat))
 
