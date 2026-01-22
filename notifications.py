@@ -372,7 +372,7 @@ def check_and_notify():
 
         cursor.execute("""
             SELECT ID, DEVICE_ID, PARAMETER_ID, SENSOR_ID, ALARM_DATE, ALARM_TIME,
-                   SMS_DATE, SMS_TIME, EMAIL_DATE, READING, IS_ACTIVE
+                   SMS_DATE, SMS_TIME, EMAIL_DATE, READING, IS_ACTIVE, FIRST_SMS_SENT
             FROM devicealarmlog
             WHERE IS_ACTIVE = 1
         """)
@@ -416,8 +416,20 @@ def check_and_notify():
             is_active = int(alarm["IS_ACTIVE"])
 
             # ================== FIRST NOTIFICATION ==================
-            if not first_sms_done and diff_seconds > 60:
+            # if not first_sms_done and diff_seconds > 60:
+            if not alarm["FIRST_SMS_SENT"] and diff_seconds > 60:
 
+                # 🔐 LOCK: duplicate SMS se bachne ke liye
+                cursor.execute("""
+                   UPDATE devicealarmlog
+                   SET FIRST_SMS_SENT = 1
+                   WHERE ID = %s AND FIRST_SMS_SENT = 0
+                """, (alarm_id,))
+
+                # Agar row update nahi hui → kisi aur cron ne SMS bhej diya
+                if cursor.rowcount == 0:
+                    continue
+                
                 cursor.execute(
                     "SELECT device_name FROM iot_api_masterdevice WHERE device_id=%s",
                     (devid,)
@@ -529,7 +541,7 @@ def check_and_notify():
 
                 if is_alarm_answered(cursor, alarm):
                         print("🔕 Alarm acknowledged. Calling disabled.")
-                        continue
+                        break
 
                 first_sms_dt = datetime.combine(
                     alarm["SMS_DATE"],
@@ -623,7 +635,7 @@ def check_and_notify():
 
                     if call_count >= 3:
                         print("⛔ Max retries reached for", phone)
-                        continue
+                        break
                         # next_phone = phone
                         # next_attempt = call_count + 1
                         # break
@@ -635,7 +647,7 @@ def check_and_notify():
                     # 📞 CALL ONLY ONE USER
                     print("📞 Calling", phone)
 
-                    voice_message = build_message(ntf_typ, device_name)
+                    voice_message = build_message(ntf_typ, f" {param_name} of {device_name}")
                     call_sid = make_robo_call(phone, voice_message)
 
                     if not call_sid:
@@ -645,7 +657,8 @@ def check_and_notify():
                     log_call(cursor, alarm, phone, call_count + 1,call_sid)
                     conn.commit()
 
-                     # 🔐 extra safety check
+                    break
+                                     # 🔐 extra safety check
                 # if is_alarm_answered(cursor, alarm):
                 #     print("🛑 Alarm answered. Stopping further calls.")
                 #     continue
