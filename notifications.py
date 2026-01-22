@@ -572,13 +572,28 @@ def check_and_notify():
                 param_name = reading_row["PARAMETER_NAME"]
 
                     # 🔥 ntf_typ YAHAN DEFINE KARNA HI PADEGA
-                ntf_typ = get_ntf_type_by_id(
-                    alarm["PARAMETER_ID"],
-                    currreading,
-                    lowth,
-                    upth
+                # ntf_typ = get_ntf_type_by_id(
+                #     alarm["PARAMETER_ID"],
+                #     currreading,
+                #     lowth,
+                #     upth
                     
-                )
+                # )
+
+                # ✅ COMMON FOR ALL PARAMETERS
+                if currreading < lowth:
+                    level = "LOW"
+                elif currreading > upth:
+                    level = "HIGH"
+                else:
+                    continue   # NORMAL → no robo call
+
+                # 🔥 level → ntf_typ mapping (IMPORTANT)
+                if level == "LOW":
+                    ntf_typ = 1      # below lower limit
+                elif level == "HIGH":
+                    ntf_typ = 2      # above higher limit
+
 
 
                 phones, _ = get_contact_info(devid)
