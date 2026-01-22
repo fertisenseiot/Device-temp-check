@@ -157,7 +157,7 @@ def make_robo_call(phone, message):
             twiml=f"<Response><Say voice='alice' language='en-IN'>{message}</Say></Response>",
             timeout=60,
             status_callback="https://fertisense-iot-production.up.railway.app/twilio/call-status/",
-            status_callback_event=["completed","busy","no-answer","failed"]
+            status_callback_event=["initiated","answered","completed","busy","no-answer","failed"]
 
         )
 
@@ -487,7 +487,6 @@ def check_and_notify():
                 # ---- FIX END ----
 
                 for phone in unique_phones:
-                    phone = normalize_phone(phone)
                     send_sms(phone, message)
 
                 for em in emails:
@@ -527,23 +526,6 @@ def check_and_notify():
             # ================== ROBO CALL AFTER 5 MIN ==================
             if first_sms_done and is_active == 1:
 
-            #     # 🚫 IMPORTANT: agar is alarm ke liye koi bhi call pehle ho chuki hai
-            #     cursor.execute("""
-            #       SELECT 1
-            #     FROM iot_api_devicealarmcalllog
-            #     WHERE ALARM_ID = %s
-            #       AND CALL_STATUS IN (0,2,3)
-            #     LIMIT 1
-            # """, (alarm["ID"],))
-
-            #     call_already_done = cursor.fetchone() is not None
-
-            #     if call_already_done:
-            #     # ❌ cron ko yahin rok do
-            #     # next retry webhook karega
-                    #  continue
-
-
 
                 if is_alarm_answered(cursor, alarm):
                         print("🔕 Alarm acknowledged. Calling disabled.")
@@ -561,9 +543,9 @@ def check_and_notify():
                 if elapsed < 300:   # 🔥 5 min (cron ke hisaab se)
                     continue
 
-                # print("ENTERED ROBO CALL BLOCK")
+                print("ENTERED ROBO CALL BLOCK")
 
-                #     # 🔥 RE-FETCH READING (cron-safe)
+                    # 🔥 RE-FETCH READING (cron-safe)
                 cursor.execute("""
                         SELECT
                             MP.PARAMETER_NAME,
@@ -601,74 +583,32 @@ def check_and_notify():
 
                 phones, _ = get_contact_info(devid)
 
-                cursor.execute("""
-                    SELECT COUNT(*) AS cnt
-                    FROM iot_api_devicealarmcalllog
-                    WHERE ALARM_ID=%s
-                       AND CALL_STATUS IN (0,2,3)
-                """, (alarm["ID"],))
-                
-                row = cursor.fetchone()
-                print("DEBUG ROW=", row)
-                count = row["cnt"] if row else 0
-                
-                if count >= 3:
-                     print("⛔ Max alarm retry reached")
-                     continue
-
-
                 flat = []
                 for p in phones:
                     if p:
-                        # for part in p.split(","):
-                        #     flat.append(part.strip())
-                        flat.extend([x.strip() for x in p.split(",") if x.strip()])
+                        for part in p.split(","):
+                            flat.append(part.strip())
 
-
-                if not flat:
-                    continue
-
-                # first_phone = normalize_phone(flat[0])
+                unique_phones = list(dict.fromkeys(flat))
                 
+                # 🔥 FIND NEXT ELIGIBLE USER (ONLY ONE)
                 next_phone = None
+                next_attempt = None
 
-                for raw_phone in flat:
-                    phone = normalize_phone(raw_phone)
-
-                    call_count = get_call_count(cursor, alarm, phone)
-
-                    if call_count == 0:
-                        next_phone = phone
-                        break
-                if not next_phone:
-                    print("⛔ All operators already tried")
-                    continue
-
-                first_phone = next_phone
-
-
-                # unique_phones = list(dict.fromkeys(flat))
-
-
-
-                # for raw in unique_phones:
-
-                # if not unique_phones:
-                #     print("❌ No operators found")
-                #     continue
+                for raw in unique_phones:
 
                     # 🛑 STOP immediately if answered during same cycle
                     # if is_alarm_answered(cursor, alarm):
                     #     print("🛑 Alarm answered mid-cycle. Breaking phone loop.")
                     #     break
 
-                # phone = normalize_phone(unique_phones[0])
-                    # call_count = get_call_count(cursor, alarm, phone)
+                    phone = normalize_phone(raw)
+                    call_count = get_call_count(cursor, alarm, phone)
 
 
-                    # if call_count >= 3:
-                    #     print("⛔ Max retries reached for", phone)
-                    #     continue
+                    if call_count >= 3:
+                        print("⛔ Max retries reached for", phone)
+                        continue
                         # next_phone = phone
                         # next_attempt = call_count + 1
                         # break
@@ -678,28 +618,18 @@ def check_and_notify():
                 #      continue
                     
                     # 📞 CALL ONLY ONE USER
-                print("📞 Calling FIRST operator", first_phone)
+                    print("📞 Calling", phone)
 
-                voice_message = build_message(ntf_typ, device_name)
-                call_sid = make_robo_call(first_phone, voice_message)
+                    voice_message = build_message(ntf_typ, device_name)
+                    call_sid = make_robo_call(phone, voice_message)
 
-                        # print("❌ Call not created for", first_phone)
-                        
-                if not call_sid:
-                    log_call(cursor, alarm, first_phone,1, None)
-                    cursor.execute("""
-                       UPDATE iot_api_devicealarmcalllog
-                       SET CALL_STATUS = 2
-                       WHERE CALL_SID IS NULL
-                          AND ALARM_ID=%s 
-                          AND PHONE_NUM=%s
-                          ORDER BY ID DESC
-                          LIMIT 1
-                    """, (alarm["ID"], first_phone))
+                    if not call_sid:
+                        print("❌ Call not created for", phone)
+                        continue
+
+                    log_call(cursor, alarm, phone, call_count + 1,call_sid)
                     conn.commit()
-                    continue
-                log_call(cursor, alarm, first_phone, 1, call_sid)
-                conn.commit()
+
                      # 🔐 extra safety check
                 # if is_alarm_answered(cursor, alarm):
                 #     print("🛑 Alarm answered. Stopping further calls.")
@@ -711,7 +641,8 @@ def check_and_notify():
 
                    
                         # if make_robo_call(phone, "Critical alert. Please check device immediately."):
-                    
+                        #     log_call(cursor, alarm, phone, call_count + 1)
+                        #     conn.commit()
 
 
             # ================== SECOND NOTIFICATION ==================
@@ -836,5 +767,3 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
-
