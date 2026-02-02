@@ -118,6 +118,19 @@ def send_sms(phone, message):
         print("❌ SMS failed:", e)
 
 
+ # for sending multiple emails
+def extract_unique_emails(email_list):
+    result = set()
+    for e in email_list:
+        if e:
+            for part in e.split(","):
+                email = part.strip()
+                if email:
+                    result.add(email)
+    return list(result)
+
+
+
 
 def send_email_brevo(to_email, subject, html_content):
     print("📧 Sending Email via Brevo...")
@@ -500,8 +513,10 @@ def check_and_notify():
 
                 for phone in unique_phones:
                     send_sms(phone, message)
-
-                for em in emails:
+                
+                unique_emails = extract_unique_emails(emails)
+                print("📧 Unique emails:", unique_emails)
+                for em in unique_emails:
                     if currreading > upth:
                         email_subject = f"IoT Alarm Notification for {device_name} | {param_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
                     elif currreading < lowth:    
@@ -748,7 +763,10 @@ def check_and_notify():
                     for phone in unique_phones:
                         send_sms(phone, message)
 
-                    for em in emails:
+                    unique_emails = extract_unique_emails(emails)
+                    print("📧 Unique emails:", unique_emails)
+                    
+                    for em in unique_emails:
                         if currreading > upth:
                             email_subject = f"IoT Alarm Notification (2nd Notification) for {device_name} |{param_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
                         elif currreading < lowth:    
@@ -795,3 +813,4 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
