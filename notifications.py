@@ -68,6 +68,8 @@ SENDER_ID = "FRTLLP"
 # ================== TIMEZONE CONFIG ==================
 TZ = pytz.timezone("Asia/Kolkata")  # Singapore timezone
 
+# FIRST_SMS_DELAY = 180   # 🔥 3 minutes = 180 seconds
+
 
 def build_message(ntf_typ, devnm):
     messages = {
@@ -430,7 +432,12 @@ def check_and_notify():
 
             # ================== FIRST NOTIFICATION ==================
             # if not first_sms_done and diff_seconds > 60:
-            if not alarm["FIRST_SMS_SENT"] and diff_seconds > 60:
+            if not alarm["FIRST_SMS_SENT"] and diff_seconds > 180:
+            # if (
+            #     not alarm["FIRST_SMS_SENT"]
+            #     and diff_seconds >= FIRST_SMS_DELAY
+            # ):
+
 
                 # 🔐 LOCK: duplicate SMS se bachne ke liye
                 cursor.execute("""
