@@ -68,7 +68,7 @@ SENDER_ID = "FRTLLP"
 # ================== TIMEZONE CONFIG ==================
 TZ = pytz.timezone("Asia/Kolkata")  # Singapore timezone
 
-# FIRST_SMS_DELAY = 180   # 🔥 3 minutes = 180 seconds
+# FIRST_SMS_DELAY = 180   # 🔥 3 minutes = 180 seconds#
 
 
 def build_message(ntf_typ, devnm):
@@ -820,4 +820,5 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
