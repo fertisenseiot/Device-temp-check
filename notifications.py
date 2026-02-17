@@ -571,7 +571,7 @@ def check_and_notify():
 
                 if is_alarm_answered(cursor, alarm):
                         print("🔕 Alarm acknowledged. Calling disabled.")
-                        break
+                        continue
 
                 first_sms_dt = datetime.combine(
                     alarm["SMS_DATE"],
@@ -828,6 +828,7 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
 
