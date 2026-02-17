@@ -425,6 +425,14 @@ def check_and_notify():
 
             raised_time = TZ.localize(datetime.combine(alarm_date, alarm_time))
             diff_seconds = (now - raised_time).total_seconds()
+            print("========== TIME DEBUG ==========")
+            print("NOW:", now)
+            print("ALARM_DATE:", alarm_date)
+            print("ALARM_TIME:", alarm_time)
+            print("RAISED_TIME:", raised_time)
+            print("DIFF_SECONDS:", diff_seconds)
+            print("================================")
+
 
             first_sms_done = alarm["SMS_DATE"] is not None
             second_sms_done = second_notification_sent.get(alarm_id, False)
@@ -820,5 +828,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
