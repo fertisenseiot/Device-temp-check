@@ -164,6 +164,7 @@ def send_email_brevo(to_email, subject, html_content):
 
 def make_robo_call(phone, message):
     print("📞 Robo calling", phone)
+    print("🗣 Robo Call Message:", message)   # 🔥 DEBUG MESSAGE
 
     try:
         call = twilio.calls.create(
@@ -409,6 +410,39 @@ def check_and_notify():
 )
             rows = cursor.fetchall()
             device_name = rows[0]["device_name"] if rows else f"Device-{devid}"
+            # 🔥 Get Organization ID and Centre ID
+            cursor.execute("""
+                    SELECT ORGANIZATION_ID, CENTRE_ID
+                    FROM iot_api_masterdevice
+                    WHERE DEVICE_ID=%s
+                    """, (devid,))
+
+            dev_row = cursor.fetchone()
+
+            org_id = dev_row["ORGANIZATION_ID"] if dev_row else None
+            centre_id = dev_row["CENTRE_ID"] if dev_row else None
+
+
+                    # 🔥 Get Organization Name
+            cursor.execute("""
+                    SELECT ORGANIZATION_NAME
+                    FROM iot_api_masterorganization
+                    WHERE ORGANIZATION_ID=%s
+                    """, (org_id,))
+
+            org_row = cursor.fetchone()
+            org_name = org_row["ORGANIZATION_NAME"] if org_row else "Unknown Org"
+
+
+                    # 🔥 Get Centre Name
+            cursor.execute("""
+                    SELECT CENTRE_NAME
+                    FROM iot_api_mastercentre
+                    WHERE CENTRE_ID=%s
+                    """, (centre_id,))
+
+            centre_row = cursor.fetchone()
+            centre_name = centre_row["CENTRE_NAME"] if centre_row else "Unknown Centre"
 
        # 🔥 Fetch parameter name
             cursor.execute(
@@ -533,15 +567,18 @@ def check_and_notify():
                 print("📧 Unique emails:", unique_emails)
                 for em in unique_emails:
                     if currreading > upth:
-                        email_subject = f"IoT Alarm Notification for {device_name} | {param_name} | Current reading is : {dev_reading} and it is HIGHER then normal"
-                    elif currreading < lowth:    
-                        email_subject = f"IoT Alarm Notification for {device_name} | {param_name} | Current reading is : {dev_reading} and it is LOWER then normal"
+                        email_subject = f"IoT Alarm | {org_name} | {centre_name} | {device_name} | {param_name} | Current reading is {dev_reading} and it is HIGHER than normal"
+
+                    elif currreading < lowth:
+                        email_subject = f"IoT Alarm | {org_name} | {centre_name} | {device_name} | {param_name} | Current reading is {dev_reading} and it is LOWER than normal"
                     else:
                         # NORMAL CONDITION → No mail
                         continue  
                     
                     email_body = f"""
                     <h2>⚠ IoT Alert Triggered</h2>
+                    <p><b>Organization:</b> {org_name}</p>
+                    <p><b>Centre:</b> {centre_name}</p>
                     <p><b>Device:</b> {device_name}</p>
                     <p><b>{param_name}</b></p>
                     <p><b>Current Reading:</b> {dev_reading}</p>
@@ -828,7 +865,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
 
 
 
