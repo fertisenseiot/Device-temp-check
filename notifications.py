@@ -627,6 +627,7 @@ def check_and_notify():
                     # 🔥 RE-FETCH READING (cron-safe)
                 cursor.execute("""
                         SELECT
+                            MP.PARAMETER_ID
                             MP.PARAMETER_NAME,
                             MP.UPPER_THRESHOLD,
                             MP.LOWER_THRESHOLD,
@@ -852,6 +853,7 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
 
