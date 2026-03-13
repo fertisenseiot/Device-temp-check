@@ -650,29 +650,6 @@ def check_and_notify():
                 lowth = reading_row["LOWER_THRESHOLD"]
                 param_name = reading_row["PARAMETER_NAME"]
 
-                    # 🔥 ntf_typ YAHAN DEFINE KARNA HI PADEGA
-                # ntf_typ = get_ntf_type_by_id(
-                #     alarm["PARAMETER_ID"],
-                #     currreading,
-                #     lowth,
-                #     upth
-                    
-                # )
-
-                # ✅ COMMON FOR ALL PARAMETERS
-                if currreading < lowth:
-                    level = "LOW"
-                elif currreading > upth:
-                    level = "HIGH"
-                else:
-                    continue   # NORMAL → no robo call
-
-                # 🔥 level → ntf_typ mapping (IMPORTANT)
-                if level == "LOW":
-                    ntf_typ = 1      # below lower limit
-                elif level == "HIGH":
-                    ntf_typ = 2      # above higher limit
-
 
 
                 phones, _ = get_contact_info(devid)
@@ -712,9 +689,19 @@ def check_and_notify():
                 #      continue
                     
                     # 📞 CALL ONLY ONE USER
+
                     print("📞 Calling", phone)
 
-                    voice_message = build_message(ntf_typ, f" {param_name} of {device_name}")
+                    param_id = reading_row["PARAMETER_ID"]
+
+                    ntf_typ = get_ntf_type_by_id(
+                        param_id,
+                        currreading,
+                        lowth,
+                        upth
+                    )
+                    voice_message = build_message(ntf_typ, device_name)
+
                     call_sid = make_robo_call(phone, voice_message)
 
                     if not call_sid:
@@ -865,7 +852,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
 
 
 
