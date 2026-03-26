@@ -1,3 +1,4 @@
+
 import traceback
 import mysql.connector
 from datetime import datetime, time, timedelta,date
@@ -30,7 +31,11 @@ TWILIO_SID = os.getenv("TWILIO_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
 TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
 
-twilio = Client(TWILIO_SID, TWILIO_TOKEN)
+if not TWILIO_SID or not TWILIO_TOKEN:
+    print("❌ Twilio config missing, skipping calls")
+    twilio = None
+else:
+    twilio = Client(TWILIO_SID, TWILIO_TOKEN)
 
 print("TWILIO_SID =", TWILIO_SID)
 print("TWILIO_TOKEN =", TWILIO_TOKEN)
@@ -474,12 +479,15 @@ def check_and_notify():
 
             # ================== FIRST NOTIFICATION ==================
             # if not first_sms_done and diff_seconds > 60:
-            if not alarm["FIRST_SMS_SENT"] and diff_seconds > 180:
+            # if not alarm["FIRST_SMS_SENT"] and diff_seconds > 180:
             # if (
             #     not alarm["FIRST_SMS_SENT"]
             #     and diff_seconds >= FIRST_SMS_DELAY
             # ):
-
+            if (
+                not alarm["FIRST_SMS_SENT"]
+                and 180 <= diff_seconds <= 600   # 3 min to 10 min
+            ):
 
                 # 🔐 LOCK: duplicate SMS se bachne ke liye
                 cursor.execute("""
