@@ -61,8 +61,9 @@ db_config = {
 # ================== SMS CONFIG ==================
 SMS_API_URL = "https://103.229.250.150/unified/v2/send"
 
-CLIENT_ID = "Fertisense_LLP"
-CLIENT_PASSWORD = "Fertisense@LLP1"
+CLIENT_ID = "Fertisense_LLPIpaslriI7m6"
+CLIENT_PASSWORD = "I05tp4i0uf3p26unljeoqnfnye06gsxy"
+
 SENDER_ID = "FRTLLP"
 
 # # ================== EMAIL CONFIG ==================
