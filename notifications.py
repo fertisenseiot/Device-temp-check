@@ -1,4 +1,3 @@
-
 import traceback
 import mysql.connector
 from datetime import datetime, time, timedelta,date
@@ -31,11 +30,7 @@ TWILIO_SID = os.getenv("TWILIO_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
 TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
 
-if not TWILIO_SID or not TWILIO_TOKEN:
-    print("❌ Twilio config missing, skipping calls")
-    twilio = None
-else:
-    twilio = Client(TWILIO_SID, TWILIO_TOKEN)
+twilio = Client(TWILIO_SID, TWILIO_TOKEN)
 
 print("TWILIO_SID =", TWILIO_SID)
 print("TWILIO_TOKEN =", TWILIO_TOKEN)
@@ -59,13 +54,10 @@ db_config = {
 }
 
 # ================== SMS CONFIG ==================
-SMS_API_URL = "https://103.229.250.150/unified/v2/send"
-
-CLIENT_ID = "Fertisense_LLPIpaslriI7m6"
-CLIENT_PASSWORD = "I05tp4i0uf3p26unljeoqnfnye06gsxy"
-
+SMS_API_URL = "http://www.universalsmsadvertising.com/universalsmsapi.php"
+SMS_USER = "8960853914"
+SMS_PASS = "8960853914"
 SENDER_ID = "FRTLLP"
-DLT_TEMPLATE_ID = "1701170773427238425"   # apna actual template id
 
 # # ================== EMAIL CONFIG ==================
 # SMTP_SERVER = "smtp.gmail.com"
@@ -111,62 +103,22 @@ def build_message(ntf_typ, devnm):
     return messages.get(ntf_typ, f"Alert for {devnm} - Regards Fertisense LLP")
     
 
-
-
 def send_sms(phone, message):
+    print("🔹 Sending SMS...")
     try:
-
-        payload = {
-            "sms": {
-                "ver": "2.0",
-                "dlr": {
-                    "url": ""
-                },
-                "messages": [
-                    {
-                        "udh": "0",
-                        "text": message,
-                        "property": 0,
-                        "id": "1",
-                        "mtsplitcount": "1",
-                        "dlttemplateid": "1701170773427238425",
-                        "dltcontenttype": 1,
-                        "coding": 1,
-                        "addresses": [
-                            {
-                                "from": SENDER_ID,
-                                "to": "+91" + phone,
-                                "seq": "1"
-                            }
-                        ]
-                    }
-                ]
-            }
+        params = {
+            "user_name": SMS_USER,
+            "user_password": SMS_PASS,
+            "mobile": phone,
+            "sender_id": SENDER_ID,
+            "type": "F",
+            "text": message
         }
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": "eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJJbmZpbml0byIsImlhdCI6MTc4NDcwMTU0NSwic3ViIjoiRmVydGlzZW5zZV9MTFBscGFzbHJpN202In0.HhwGx9f0hTaHT1BN4pCJOU1GQdZp4i_V8YLcAw6hb4w"
-        }
-
-        import json
-
-        print("========== PAYLOAD ==========")
-        print(json.dumps(payload, indent=4))
-        print("=============================")
-
-        response = requests.post(
-            SMS_API_URL,
-            data=json.dumps(payload),
-            headers=headers,
-            timeout=20
-        )
-
-        print("Status:", response.status_code)
-        print("Response:", response.text)
-
+        response = requests.get(SMS_API_URL, params=params)
+        print("✅ SMS sent! Response:", response.text)
     except Exception as e:
-        print(e)
+        print("❌ SMS failed:", e)
+
 
  # for sending multiple emails
 def extract_unique_emails(email_list):
@@ -522,15 +474,12 @@ def check_and_notify():
 
             # ================== FIRST NOTIFICATION ==================
             # if not first_sms_done and diff_seconds > 60:
-            # if not alarm["FIRST_SMS_SENT"] and diff_seconds > 180:
+            if not alarm["FIRST_SMS_SENT"] and diff_seconds > 180:
             # if (
             #     not alarm["FIRST_SMS_SENT"]
             #     and diff_seconds >= FIRST_SMS_DELAY
             # ):
-            if (
-                not alarm["FIRST_SMS_SENT"]
-                and 180 <= diff_seconds <= 600   # 3 min to 10 min
-            ):
+
 
                 # 🔐 LOCK: duplicate SMS se bachne ke liye
                 cursor.execute("""
@@ -904,7 +853,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
 
 
 
