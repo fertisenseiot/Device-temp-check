@@ -59,9 +59,10 @@ db_config = {
 }
 
 # ================== SMS CONFIG ==================
-SMS_API_URL = "http://www.universalsmsadvertising.com/universalsmsapi.php"
-SMS_USER = "8960853914"
-SMS_PASS = "8960853914"
+SMS_API_URL = "https://103.229.250.150/unified/v2/send"
+
+CLIENT_ID = "Fertisense_LLP"
+CLIENT_PASSWORD = "Fertisense@LLP1"
 SENDER_ID = "FRTLLP"
 
 # # ================== EMAIL CONFIG ==================
@@ -109,20 +110,28 @@ def build_message(ntf_typ, devnm):
     
 
 def send_sms(phone, message):
-    print("🔹 Sending SMS...")
     try:
         params = {
-            "user_name": SMS_USER,
-            "user_password": SMS_PASS,
-            "mobile": phone,
-            "sender_id": SENDER_ID,
-            "type": "F",
-            "text": message
+            "clientid": CLIENT_ID,
+            "clientpassword": CLIENT_PASSWORD,
+            "to": phone,
+            "from": SENDER_ID,
+            "text": message,
+
+
         }
-        response = requests.get(SMS_API_URL, params=params)
-        print("✅ SMS sent! Response:", response.text)
+
+        response = requests.get(
+            SMS_API_URL,
+            params=params,
+            timeout=20
+        )
+
+        print(response.status_code)
+        print(response.text)
+
     except Exception as e:
-        print("❌ SMS failed:", e)
+        print(e)
 
 
  # for sending multiple emails
@@ -861,7 +870,6 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
-
 
 
 
