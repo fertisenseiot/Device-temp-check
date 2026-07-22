@@ -65,7 +65,7 @@ CLIENT_ID = "Fertisense_LLPIpaslriI7m6"
 CLIENT_PASSWORD = "I05tp4i0uf3p26unljeoqnfnye06gsxy"
 
 SENDER_ID = "FRTLLP"
-# DLT_TEMPLATE_ID = "1107161510250315776"   # apna actual template id
+DLT_TEMPLATE_ID = "1701170773427238425"   # apna actual template id
 
 # # ================== EMAIL CONFIG ==================
 # SMTP_SERVER = "smtp.gmail.com"
@@ -129,6 +129,8 @@ def send_sms(phone, message):
                         "property": 0,
                         "id": "1",
                         "mtsplitcount": "1",
+                        "dlttemplateid": "1701170773427238425",
+                        "dltcontenttype": 1,
                         "coding": 1,
                         "addresses": [
                             {
