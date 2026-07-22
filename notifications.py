@@ -135,7 +135,7 @@ def send_sms(phone, message):
                         "addresses": [
                             {
                                 "from": SENDER_ID,
-                                "to": "+91" + phone,
+                                "to": "91" + phone,
                                 "seq": "1"
                             }
                         ]
