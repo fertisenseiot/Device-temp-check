@@ -135,7 +135,7 @@ def send_sms(phone, message):
                         "addresses": [
                             {
                                 "from": SENDER_ID,
-                                "to": "91" + phone,
+                                "to": "+91" + phone,
                                 "seq": "1"
                             }
                         ]
@@ -150,6 +150,10 @@ def send_sms(phone, message):
         }
 
         import json
+
+        print("========== PAYLOAD ==========")
+        print(json.dumps(payload, indent=4))
+        print("=============================")
 
         response = requests.post(
             SMS_API_URL,
