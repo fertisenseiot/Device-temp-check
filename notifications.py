@@ -1,4 +1,3 @@
-
 import traceback
 import mysql.connector
 from datetime import datetime, time, timedelta,date
@@ -31,11 +30,7 @@ TWILIO_SID = os.getenv("TWILIO_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
 TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
 
-if not TWILIO_SID or not TWILIO_TOKEN:
-    print("❌ Twilio config missing, skipping calls")
-    twilio = None
-else:
-    twilio = Client(TWILIO_SID, TWILIO_TOKEN)
+twilio = Client(TWILIO_SID, TWILIO_TOKEN)
 
 print("TWILIO_SID =", TWILIO_SID)
 print("TWILIO_TOKEN =", TWILIO_TOKEN)
@@ -59,11 +54,9 @@ db_config = {
 }
 
 # ================== SMS CONFIG ==================
-SMS_API_URL = "https://103.229.250.150/unified/v2/send"
-
-CLIENT_ID = "Fertisense_LLPIpaslriI7m6"
-CLIENT_PASSWORD = "I05tp4i0uf3p26unljeoqnfnye06gsxy"
-
+SMS_API_URL = "http://www.universalsmsadvertising.com/universalsmsapi.php"
+SMS_USER = "8960853914"
+SMS_PASS = "8960853914"
 SENDER_ID = "FRTLLP"
 
 # # ================== EMAIL CONFIG ==================
@@ -111,28 +104,20 @@ def build_message(ntf_typ, devnm):
     
 
 def send_sms(phone, message):
+    print("🔹 Sending SMS...")
     try:
         params = {
-            "clientid": CLIENT_ID,
-            "clientpassword": CLIENT_PASSWORD,
-            "to": phone,
-            "from": SENDER_ID,
-            "text": message,
-
-
+            "user_name": SMS_USER,
+            "user_password": SMS_PASS,
+            "mobile": phone,
+            "sender_id": SENDER_ID,
+            "type": "F",
+            "text": message
         }
-
-        response = requests.get(
-            SMS_API_URL,
-            params=params,
-            timeout=20
-        )
-
-        print(response.status_code)
-        print(response.text)
-
+        response = requests.get(SMS_API_URL, params=params)
+        print("✅ SMS sent! Response:", response.text)
     except Exception as e:
-        print(e)
+        print("❌ SMS failed:", e)
 
 
  # for sending multiple emails
@@ -489,15 +474,12 @@ def check_and_notify():
 
             # ================== FIRST NOTIFICATION ==================
             # if not first_sms_done and diff_seconds > 60:
-            # if not alarm["FIRST_SMS_SENT"] and diff_seconds > 180:
+            if not alarm["FIRST_SMS_SENT"] and diff_seconds > 180:
             # if (
             #     not alarm["FIRST_SMS_SENT"]
             #     and diff_seconds >= FIRST_SMS_DELAY
             # ):
-            if (
-                not alarm["FIRST_SMS_SENT"]
-                and 180 <= diff_seconds <= 600   # 3 min to 10 min
-            ):
+
 
                 # 🔐 LOCK: duplicate SMS se bachne ke liye
                 cursor.execute("""
@@ -871,6 +853,7 @@ if __name__ == "__main__":
     print("🚀 Starting notification check...")
     check_and_notify()
     print("✅ Notification check complete. Exiting now.")
+
 
 
 
