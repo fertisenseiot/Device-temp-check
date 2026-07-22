@@ -142,8 +142,7 @@ def send_sms(phone, message):
 
         headers = {
             "Content-Type": "application/json",
-            "x-client-id": CLIENT_ID,
-            "x-client-password": CLIENT_PASSWORD
+            "Authorization": "eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJJbmZpbml0byIsImlhdCI6MTc4NDcwMTU0NSwic3ViIjoiRmVydGlzZW5zZV9MTFBscGFzbHJpN202In0.HhwGx9f0hTaHT1BN4pCJOU1GQdZp4i_V8YLcAw6hb4w"
         }
 
         response = requests.post(
