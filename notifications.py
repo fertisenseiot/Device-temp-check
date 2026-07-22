@@ -111,7 +111,7 @@ def build_message(ntf_typ, devnm):
     return messages.get(ntf_typ, f"Alert for {devnm} - Regards Fertisense LLP")
     
 
-import requests
+
 
 def send_sms(phone, message):
     try:
@@ -127,6 +127,8 @@ def send_sms(phone, message):
                         "udh": "0",
                         "text": message,
                         "property": 0,
+                        "id": "1",
+                        "mtsplitcount": "1",
                         "coding": 1,
                         "addresses": [
                             {
@@ -145,9 +147,11 @@ def send_sms(phone, message):
             "Authorization": "eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJJbmZpbml0byIsImlhdCI6MTc4NDcwMTU0NSwic3ViIjoiRmVydGlzZW5zZV9MTFBscGFzbHJpN202In0.HhwGx9f0hTaHT1BN4pCJOU1GQdZp4i_V8YLcAw6hb4w"
         }
 
+        import json
+
         response = requests.post(
             SMS_API_URL,
-            json=payload,
+            data=json.dumps(payload),
             headers=headers,
             timeout=20
         )
